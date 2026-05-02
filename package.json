@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vercel dev",
     "start": "npx serve .",
-    "build": "echo \"Static app ready\""
+    "build": "node scripts/build-static.js"
   },
   "keywords": [
     "real-estate",
