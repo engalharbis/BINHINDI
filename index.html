@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#11110f" />
+    <title>حاسبة الاستثمار العقاري</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section id="splash" class="splash">
+        <div class="brand-mark" aria-hidden="true">م</div>
+        <p class="eyebrow">Real Estate Investment Calculator</p>
+        <h1>حاسبة الاستثمار العقاري</h1>
+        <p class="lead">احسب جدوى مشروعك العقاري بدقة واحترافية</p>
+        <div class="intro-card">
+          <strong>تحليل شامل</strong>
+          <span>تكاليف الأرض والتطوير، الإيرادات، المصاريف، التمويل، مؤشرات العائد، الرسوم، وتقرير PDF.</span>
+        </div>
+        <button class="primary-btn" data-start>بدء الحساب</button>
+      </section>
+
+      <section id="wizard" class="wizard is-hidden" aria-live="polite">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow" id="stepLabel">المرحلة 1 من 7</p>
+            <h2 id="stepTitle">نوع العقار</h2>
+          </div>
+          <button class="icon-btn" data-reset title="إعادة الحساب" aria-label="إعادة الحساب">↻</button>
+        </header>
+
+        <div class="progress-track" aria-hidden="true"><span id="progressFill"></span></div>
+        <p id="errorMessage" class="error is-hidden"></p>
+
+        <form id="calculatorForm" novalidate>
+          <article class="step" data-step="0">
+            <div class="section-copy">
+              <h3>اختر نوع العقار</h3>
+              <p>سيتم تكييف مسميات الإيرادات حسب نوع الأصل.</p>
+            </div>
+            <div class="property-grid" id="propertyGrid"></div>
+          </article>
+
+          <article class="step is-hidden" data-step="1">
+            <div class="section-copy">
+              <h3>مدخلات الأرض</h3>
+              <p>تكلفة التملك والرسوم المرتبطة بها.</p>
+            </div>
+            <div class="card form-grid">
+              <label>مساحة الأرض بالمتر المربع<input name="landArea" type="number" min="0" inputmode="decimal" /></label>
+              <label>سعر المتر<input name="landPricePerMeter" type="number" min="0" inputmode="decimal" /></label>
+              <div class="readonly"><span>إجمالي قيمة الأرض</span><strong data-out="landValue">0 ر.س</strong></div>
+              <label>رسوم السعي أو الوساطة<input name="brokerageFees" type="number" min="0" inputmode="decimal" /></label>
+              <label>ضريبة التصرفات العقارية<input name="realEstateTransactionTax" type="number" min="0" inputmode="decimal" /></label>
+              <label>رسوم أخرى<input name="otherLandFees" type="number" min="0" inputmode="decimal" /></label>
+              <div class="readonly dark"><span>إجمالي تكلفة تملك الأرض</span><strong data-out="totalLandCost">0 ر.س</strong></div>
+            </div>
+          </article>
+
+          <article class="step is-hidden" data-step="2">
+            <div class="section-copy">
+              <h3>البناء والتطوير</h3>
+              <p>اجمع التكاليف المباشرة وغير المباشرة واحتياطي المخاطر.</p>
+            </div>
+            <div class="card form-grid">
+              <label>مسطح البناء الإجمالي<input name="builtUpArea" type="number" min="0" inputmode="decimal" /></label>
+              <label>تكلفة البناء للمتر<input name="constructionCostPerMeter" type="number" min="0" inputmode="decimal" /></label>
+              <div class="readonly"><span>إجمالي تكلفة البناء</span><strong data-out="baseConstructionCost">0 ر.س</strong></div>
+              <label>تكلفة التصميم والاستشارات<input name="designConsultingCost" type="number" min="0" inputmode="decimal" /></label>
+              <label>تكلفة التراخيص<input name="permitCost" type="number" min="0" inputmode="decimal" /></label>
+              <label>تكلفة الإشراف الهندسي<input name="engineeringSupervisionCost" type="number" min="0" inputmode="decimal" /></label>
+              <label>تكلفة البنية التحتية<input name="infrastructureCost" type="number" min="0" inputmode="decimal" /></label>
+              <label>تكلفة الكهرباء<input name="electricityCost" type="number" min="0" inputmode="decimal" /></label>
+              <label>تكلفة المياه<input name="waterCost" type="number" min="0" inputmode="decimal" /></label>
+              <label>تكلفة الدفاع المدني<input name="civilDefenseCost" type="number" min="0" inputmode="decimal" /></label>
+              <label>تكلفة المصاعد إن وجدت<input name="elevatorsCost" type="number" min="0" inputmode="decimal" /></label>
+              <label>تكلفة التشطيبات<input name="finishingCost" type="number" min="0" inputmode="decimal" /></label>
+              <label>احتياطي مخاطر / طوارئ %<input name="contingencyPercentage" type="number" min="0" max="100" inputmode="decimal" value="7.5" /></label>
+              <div class="readonly dark"><span>إجمالي تكلفة التطوير</span><strong data-out="totalDevelopmentCost">0 ر.س</strong></div>
+            </div>
+          </article>
+
+          <article class="step is-hidden" data-step="3">
+            <div class="section-copy">
+              <h3>الإيرادات المتوقعة</h3>
+              <p>حقول مرنة حسب نوع العقار المختار.</p>
+            </div>
+            <div class="card form-grid">
+              <label><span data-label="unitsCount">عدد الوحدات</span><input name="unitsCount" type="number" min="0" inputmode="decimal" /></label>
+              <label><span data-label="averageMonthlyRent">متوسط الإيجار الشهري للوحدة</span><input name="averageMonthlyRent" type="number" min="0" inputmode="decimal" /></label>
+              <label>نسبة الإشغال المتوقعة %<input name="occupancyRate" type="number" min="0" max="100" inputmode="decimal" value="90" /></label>
+              <label class="hotel-only is-hidden">عدد أيام التشغيل<input name="operatingDays" type="number" min="0" inputmode="decimal" value="365" /></label>
+              <label><span data-label="additionalIncome">دخل إضافي</span><input name="additionalIncome" type="number" min="0" inputmode="decimal" /></label>
+              <div class="readonly"><span>إجمالي الدخل الشهري</span><strong data-out="monthlyIncome">0 ر.س</strong></div>
+              <div class="readonly dark"><span>إجمالي الدخل السنوي</span><strong data-out="annualRevenue">0 ر.س</strong></div>
+            </div>
+          </article>
+
+          <article class="step is-hidden" data-step="4">
+            <div class="section-copy">
+              <h3>المصاريف التشغيلية</h3>
+              <p>مصاريف سنوية ثابتة ونسبة متغيرة من الإيراد.</p>
+            </div>
+            <div class="card form-grid">
+              <label>الصيانة السنوية<input name="annualMaintenance" type="number" min="0" inputmode="decimal" /></label>
+              <label>الحراسة والأمن<input name="security" type="number" min="0" inputmode="decimal" /></label>
+              <label>النظافة<input name="cleaning" type="number" min="0" inputmode="decimal" /></label>
+              <label>الكهرباء والمياه على المالك<input name="ownerUtilities" type="number" min="0" inputmode="decimal" /></label>
+              <label>الإدارة والتشغيل<input name="managementOperations" type="number" min="0" inputmode="decimal" /></label>
+              <label>التأمين<input name="insurance" type="number" min="0" inputmode="decimal" /></label>
+              <label>التسويق<input name="marketing" type="number" min="0" inputmode="decimal" /></label>
+              <label>مصاريف أخرى<input name="otherOperatingExpenses" type="number" min="0" inputmode="decimal" /></label>
+              <label>نسبة المصاريف التشغيلية من الإيراد %<input name="operatingExpensePercentage" type="number" min="0" max="100" inputmode="decimal" /></label>
+              <div class="readonly dark"><span>صافي الدخل التشغيلي NOI</span><strong data-out="noi">0 ر.س</strong></div>
+            </div>
+          </article>
+
+          <article class="step is-hidden" data-step="5">
+            <div class="section-copy">
+              <h3>التمويل البنكي الاختياري</h3>
+              <p>عند التفعيل يتم حساب القسط وخدمة الدين وDSCR.</p>
+            </div>
+            <div class="card form-grid">
+              <label class="toggle-row">هل يوجد تمويل بنكي؟<input name="hasFinancing" type="checkbox" /></label>
+              <div class="finance-fields is-hidden">
+                <label>مبلغ التمويل<input name="financingAmount" type="number" min="0" inputmode="decimal" /></label>
+                <label>نسبة التمويل من إجمالي تكلفة المشروع %<input name="financingRatio" type="number" min="0" max="100" inputmode="decimal" /></label>
+                <label>مدة التمويل بالسنوات<input name="termYears" type="number" min="0" inputmode="decimal" value="15" /></label>
+                <label>نسبة الفائدة أو الربح السنوي %<input name="annualInterestRate" type="number" min="0" inputmode="decimal" value="5" /></label>
+                <label>نوع السداد<select name="repaymentType"><option value="monthlyFixed">قسط ثابت شهري</option><option value="annual">قسط سنوي</option></select></label>
+                <div class="readonly"><span>القسط الشهري</span><strong data-out="monthlyDebtService">0 ر.س</strong></div>
+                <div class="readonly"><span>إجمالي تكلفة التمويل</span><strong data-out="totalFinancingCost">0 ر.س</strong></div>
+                <div class="readonly dark"><span>صافي التدفق بعد خدمة الدين</span><strong data-out="netIncomeAfterFinancing">0 ر.س</strong></div>
+                <div class="readonly"><span>DSCR</span><strong data-out="dscr">لا يوجد</strong></div>
+              </div>
+              <p class="muted finance-empty">بدون تمويل سيتم تجاهل خدمة الدين في حسابات العائد.</p>
+            </div>
+          </article>
+
+          <article class="step is-hidden" data-step="6">
+            <div class="section-copy">
+              <h3>النتائج النهائية</h3>
+              <p>لوحة تنفيذية بالمؤشرات والرسوم وتقرير قابل للحفظ PDF.</p>
+            </div>
+            <div class="rating-card">
+              <span>تقييم الاستثمار</span>
+              <strong data-out="rating">ضعيف</strong>
+            </div>
+            <div class="kpi-grid" id="kpiGrid"></div>
+            <div class="charts-grid">
+              <section class="card chart-card"><h4>توزيع تكلفة المشروع</h4><canvas id="pieChart" width="320" height="260"></canvas></section>
+              <section class="card chart-card"><h4>مقارنة الدخل والمصاريف</h4><canvas id="barChart" width="320" height="260"></canvas></section>
+              <section class="card chart-card full"><h4>التدفقات النقدية لعشر سنوات</h4><canvas id="lineChart" width="680" height="260"></canvas></section>
+            </div>
+            <div class="pdf-actions">
+              <button class="primary-btn" type="button" data-export>تصدير تقرير PDF</button>
+              <p class="muted">سيتم فتح نافذة الطباعة لحفظ التقرير كملف PDF مناسب للمشاركة.</p>
+            </div>
+          </article>
+
+          <nav class="nav-actions">
+            <button class="secondary-btn" type="button" data-prev>السابق</button>
+            <button class="primary-btn" type="button" data-next>التالي</button>
+          </nav>
+        </form>
+      </section>
+    </main>
+
+    <section id="printReport" class="print-report" aria-hidden="true"></section>
+    <script src="/app.js"></script>
+  </body>
+</html>

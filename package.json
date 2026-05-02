@@ -1,0 +1,21 @@
+{
+  "name": "real-estate-investment-calculator",
+  "version": "1.0.0",
+  "private": true,
+  "description": "حاسبة الاستثمار العقاري - نسخة ويب عربية قابلة للنشر على Vercel",
+  "scripts": {
+    "dev": "vercel dev",
+    "start": "npx serve .",
+    "build": "echo \"Static app ready\""
+  },
+  "keywords": [
+    "real-estate",
+    "investment",
+    "calculator",
+    "arabic",
+    "rtl",
+    "vercel"
+  ],
+  "author": "Codex",
+  "license": "MIT"
+}
