@@ -5,12 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#11110f" />
     <title>حاسبة الاستثمار العقاري</title>
+    <link rel="icon" href="/assets/logo.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css" />
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   </head>
   <body>
     <main class="app-shell">
       <section id="splash" class="splash">
-        <div class="brand-mark" aria-hidden="true">م</div>
+        <img class="logo-mark" src="/assets/logo.svg" alt="بداية الطريق العقارية" />
         <p class="eyebrow">Real Estate Investment Calculator</p>
         <h1>حاسبة الاستثمار العقاري</h1>
         <p class="lead">احسب جدوى مشروعك العقاري بدقة واحترافية</p>
@@ -18,7 +21,17 @@
           <strong>تحليل شامل</strong>
           <span>تكاليف الأرض والتطوير، الإيرادات، المصاريف، التمويل، مؤشرات العائد، الرسوم، وتقرير PDF.</span>
         </div>
-        <button class="primary-btn" data-start>بدء الحساب</button>
+        <div class="mode-grid">
+          <button class="mode-card" data-mode="purchase" type="button">
+            <strong>شراء عقار</strong>
+            <span>شراء أرض أو أصل عقاري ثم تطويره أو تشغيله.</span>
+          </button>
+          <button class="mode-card" data-mode="leaseInvestment" type="button">
+            <strong>استثمار</strong>
+            <span>استئجار أرض والبناء عليها ثم حساب الجدوى.</span>
+          </button>
+        </div>
+        <button class="secondary-btn" data-load-project type="button">استرجاع آخر مشروع محفوظ</button>
       </section>
 
       <section id="wizard" class="wizard is-hidden" aria-live="polite">
@@ -51,6 +64,7 @@
               <label>مساحة الأرض بالمتر المربع<input name="landArea" type="number" min="0" inputmode="decimal" /></label>
               <label>سعر المتر<input name="landPricePerMeter" type="number" min="0" inputmode="decimal" /></label>
               <div class="readonly"><span>إجمالي قيمة الأرض</span><strong data-out="landValue">0 ر.س</strong></div>
+              <label>طريقة رسوم السعي أو الوساطة<select name="brokerageMode"><option value="amount">مبلغ خام</option><option value="percentage">نسبة من قيمة العقار</option></select></label>
               <label>رسوم السعي أو الوساطة<input name="brokerageFees" type="number" min="0" inputmode="decimal" /></label>
               <label>ضريبة التصرفات العقارية<input name="realEstateTransactionTax" type="number" min="0" inputmode="decimal" /></label>
               <label>رسوم أخرى<input name="otherLandFees" type="number" min="0" inputmode="decimal" /></label>
@@ -66,6 +80,8 @@
             <div class="card form-grid">
               <label>مسطح البناء الإجمالي<input name="builtUpArea" type="number" min="0" inputmode="decimal" /></label>
               <label>تكلفة البناء للمتر<input name="constructionCostPerMeter" type="number" min="0" inputmode="decimal" /></label>
+              <label>نسبة البناء للأرض %<input name="constructionLandRatio" type="number" min="0" inputmode="decimal" /></label>
+              <div class="readonly"><span>نسبة المسطح إلى الأرض</span><strong data-out="builtRatio">0٪</strong></div>
               <div class="readonly"><span>إجمالي تكلفة البناء</span><strong data-out="baseConstructionCost">0 ر.س</strong></div>
               <label>تكلفة التصميم والاستشارات<input name="designConsultingCost" type="number" min="0" inputmode="decimal" /></label>
               <label>تكلفة التراخيص<input name="permitCost" type="number" min="0" inputmode="decimal" /></label>
@@ -103,6 +119,7 @@
               <p>مصاريف سنوية ثابتة ونسبة متغيرة من الإيراد.</p>
             </div>
             <div class="card form-grid">
+              <label>طريقة الصيانة السنوية<select name="maintenanceMode"><option value="amount">مبلغ خام</option><option value="percentage">نسبة من الإيراد السنوي</option></select></label>
               <label>الصيانة السنوية<input name="annualMaintenance" type="number" min="0" inputmode="decimal" /></label>
               <label>الحراسة والأمن<input name="security" type="number" min="0" inputmode="decimal" /></label>
               <label>النظافة<input name="cleaning" type="number" min="0" inputmode="decimal" /></label>
@@ -155,7 +172,8 @@
             </div>
             <div class="pdf-actions">
               <button class="primary-btn" type="button" data-export>تصدير تقرير PDF</button>
-              <p class="muted">سيتم فتح نافذة الطباعة لحفظ التقرير كملف PDF مناسب للمشاركة.</p>
+              <button class="secondary-btn" type="button" data-save-project>حفظ المشروع</button>
+              <p class="muted">سيتم إنشاء ملف PDF مباشر يحتوي على الغلاف والجداول والرسوم والتوصية.</p>
             </div>
           </article>
 

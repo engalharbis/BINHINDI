@@ -56,17 +56,13 @@ select {
   text-align: center;
 }
 
-.brand-mark {
-  width: 104px;
-  height: 104px;
+.logo-mark {
+  width: 128px;
+  height: 128px;
   margin: 0 auto;
-  display: grid;
-  place-items: center;
+  display: block;
   border-radius: 50%;
-  background: var(--black);
-  color: var(--gold);
-  font-size: 42px;
-  font-weight: 900;
+  object-fit: cover;
   box-shadow: 0 24px 60px rgba(17, 17, 15, 0.22);
 }
 
@@ -126,6 +122,37 @@ h3 {
 
 .intro-card strong {
   color: var(--black);
+}
+
+.mode-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.mode-card {
+  min-height: 124px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  padding: 16px;
+  text-align: right;
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  cursor: pointer;
+  box-shadow: 0 18px 42px rgba(17, 17, 15, 0.08);
+}
+
+.mode-card strong {
+  color: var(--black);
+  font-size: 1.05rem;
+}
+
+.mode-card span {
+  color: var(--muted);
+  line-height: 1.55;
+  font-size: 0.9rem;
 }
 
 .primary-btn,
@@ -430,7 +457,148 @@ canvas {
 }
 
 .print-report {
-  display: none;
+  position: fixed;
+  inset-inline-start: -12000px;
+  top: 0;
+  width: 794px;
+  background: white;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.pdf-actions.is-exporting .primary-btn {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.report-page {
+  position: relative;
+  width: 794px;
+  min-height: 1123px;
+  padding: 46px;
+  background: #ffffff;
+  color: #11110f;
+  direction: rtl;
+  font-family: Tahoma, Arial, sans-serif;
+}
+
+.report-cover {
+  background: #11110f;
+  color: #ffffff;
+}
+
+.report-cover h1 {
+  margin-top: 90px;
+  font-size: 42px;
+}
+
+.report-cover .gold {
+  color: #c69b4f;
+}
+
+.report-logo {
+  width: 126px;
+  height: 126px;
+  object-fit: contain;
+  border-radius: 26px;
+}
+
+.report-watermark {
+  position: absolute;
+  left: 30px;
+  bottom: 28px;
+  width: 64px;
+  height: 64px;
+  opacity: 0.16;
+}
+
+.report-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin-top: 42px;
+}
+
+.report-kpi,
+.report-section {
+  border: 1px solid #ded8ca;
+  border-radius: 8px;
+  padding: 14px;
+  break-inside: avoid;
+}
+
+.report-kpi strong {
+  display: block;
+  margin-top: 8px;
+  color: #c69b4f;
+  font-size: 20px;
+}
+
+.report-section {
+  margin-bottom: 16px;
+}
+
+.report-section h2 {
+  font-size: 20px;
+  margin-bottom: 12px;
+}
+
+.report-charts {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.report-charts figure {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid #eee7dc;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.report-charts figure.wide {
+  grid-column: 1 / -1;
+}
+
+.report-charts img {
+  max-width: 100%;
+  height: auto;
+}
+
+.report-charts figcaption {
+  margin-top: 8px;
+  color: #5f5a52;
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.report-section table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.report-section td {
+  border-bottom: 1px solid #eee7dc;
+  padding: 8px;
+}
+
+.report-section td:first-child {
+  color: #5f5a52;
+}
+
+.report-section td:last-child {
+  text-align: left;
+  font-weight: 800;
+}
+
+.report-note {
+  margin-top: 30px;
+  padding: 14px;
+  background: #f6f4ef;
+  border-radius: 8px;
+  font-weight: 800;
 }
 
 @media (min-width: 760px) {
@@ -476,13 +644,33 @@ canvas {
   }
 
   .print-report {
-    display: block;
+    position: static;
+    width: auto;
+    z-index: auto;
+    pointer-events: auto;
     direction: rtl;
     color: #11110f;
     font-family: Tahoma, Arial, sans-serif;
   }
 
+  .report-logo {
+    width: 118px;
+    height: 118px;
+    object-fit: contain;
+    border-radius: 24px;
+  }
+
+  .report-watermark {
+    position: absolute;
+    left: 28px;
+    bottom: 24px;
+    width: 58px;
+    height: 58px;
+    opacity: 0.18;
+  }
+
   .report-page {
+    position: relative;
     min-height: 100vh;
     padding: 34px;
     page-break-after: always;

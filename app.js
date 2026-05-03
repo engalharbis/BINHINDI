@@ -21,8 +21,11 @@ const steps = [
 
 const state = {
   step: 0,
-  propertyType: "residentialBuilding"
+  propertyType: "residentialBuilding",
+  mode: "purchase"
 };
+
+const storageKey = "realEstateInvestmentCalculator:lastProject";
 
 const currency = new Intl.NumberFormat("ar-SA", {
   style: "currency",
@@ -45,13 +48,23 @@ function value(name) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 }
 
+function rawValue(name) {
+  const field = document.querySelector(`[name="${name}"]`);
+  if (!field) return "";
+  if (field.type === "checkbox") return field.checked;
+  return field.value;
+}
+
 function percent(raw) {
   return Math.min(Math.max(raw, 0), 100) / 100;
 }
 
 function calculate() {
   const landValue = value("landArea") * value("landPricePerMeter");
-  const totalLandCost = landValue + value("brokerageFees") + value("realEstateTransactionTax") + value("otherLandFees");
+  const brokerageFees = rawValue("brokerageMode") === "percentage"
+    ? landValue * percent(value("brokerageFees"))
+    : value("brokerageFees");
+  const totalLandCost = landValue + brokerageFees + value("realEstateTransactionTax") + value("otherLandFees");
   const baseConstructionCost = value("builtUpArea") * value("constructionCostPerMeter");
   const directDevelopmentCosts = baseConstructionCost
     + value("designConsultingCost")
@@ -78,7 +91,10 @@ function calculate() {
     annualRevenue = monthlyIncome * 12;
   }
 
-  const fixedOperatingExpenses = value("annualMaintenance")
+  const annualMaintenance = rawValue("maintenanceMode") === "percentage"
+    ? annualRevenue * percent(value("annualMaintenance"))
+    : value("annualMaintenance");
+  const fixedOperatingExpenses = annualMaintenance
     + value("security")
     + value("cleaning")
     + value("ownerUtilities")
@@ -107,6 +123,8 @@ function calculate() {
 
   return {
     landValue,
+    brokerageFees,
+    annualMaintenance,
     totalLandCost,
     baseConstructionCost,
     directDevelopmentCosts,
@@ -159,10 +177,11 @@ function debtService() {
 
 function renderPropertyTypes() {
   const grid = $("#propertyGrid");
+  const titlePrefix = state.mode === "leaseInvestment" ? "استثمار - " : "";
   grid.innerHTML = propertyTypes.map(([id, title, icon]) => `
     <button class="property-card ${state.propertyType === id ? "is-selected" : ""}" type="button" data-property="${id}">
       <span class="property-icon">${icon}</span>
-      <strong>${title}</strong>
+      <strong>${titlePrefix}${title}</strong>
     </button>
   `).join("");
 }
@@ -186,6 +205,8 @@ function syncOutputs() {
   if (dscr) dscr.textContent = r.dscr ? number.format(r.dscr) : "لا يوجد";
   const rating = document.querySelector('[data-out="rating"]');
   if (rating) rating.textContent = r.rating;
+  const builtRatio = document.querySelector('[data-out="builtRatio"]');
+  if (builtRatio) builtRatio.textContent = value("landArea") > 0 ? `${number.format((value("builtUpArea") / value("landArea")) * 100)}٪` : "0٪";
   renderKpis(r);
   if (state.step === 6) renderCharts(r);
 }
@@ -245,13 +266,31 @@ function drawPie(canvas, items) {
   let start = -Math.PI / 2;
   items.forEach((item, index) => {
     const slice = (item.value / total) * Math.PI * 2;
+    const middle = start + slice / 2;
     ctx.beginPath();
     ctx.moveTo(160, 115);
     ctx.arc(160, 115, 86, start, start + slice);
     ctx.closePath();
     ctx.fillStyle = colors[index % colors.length];
     ctx.fill();
+    if (slice > 0.26) {
+      const labelX = 160 + Math.cos(middle) * 54;
+      const labelY = 115 + Math.sin(middle) * 54;
+      ctx.fillStyle = index === 0 ? "#ffffff" : "#11110f";
+      ctx.font = "bold 11px Tahoma";
+      ctx.textAlign = "center";
+      ctx.fillText(`${Math.round((item.value / total) * 100)}٪`, labelX, labelY);
+    }
     start += slice;
+  });
+  ctx.font = "11px Tahoma";
+  ctx.textAlign = "right";
+  items.slice(0, 5).forEach((item, index) => {
+    const y = 218 + index * 16;
+    ctx.fillStyle = colors[index % colors.length];
+    ctx.fillRect(230, y - 9, 10, 10);
+    ctx.fillStyle = "#68645c";
+    ctx.fillText(`${item.label}: ${number.format((item.value / total) * 100)}٪`, 222, y);
   });
 }
 
@@ -270,6 +309,9 @@ function drawBar(canvas, items) {
     ctx.font = "12px Tahoma";
     ctx.textAlign = "center";
     ctx.fillText(item.label, x + w / 2, 226);
+    ctx.fillStyle = "#11110f";
+    ctx.font = "bold 10px Tahoma";
+    ctx.fillText(compactMoney(item.value), x + w / 2, Math.max(y - 8, 14));
   });
 }
 
@@ -297,7 +339,21 @@ function drawLine(canvas, flows) {
     ctx.beginPath();
     ctx.arc(x, y, 4, 0, Math.PI * 2);
     ctx.fill();
+    if (index === 0 || index === values.length - 1 || index === 4) {
+      ctx.fillStyle = "#11110f";
+      ctx.font = "bold 11px Tahoma";
+      ctx.textAlign = "center";
+      ctx.fillText(compactMoney(val), x, Math.max(y - 10, 14));
+      ctx.fillStyle = "#c69b4f";
+    }
   });
+}
+
+function compactMoney(value) {
+  const abs = Math.abs(value);
+  if (abs >= 1000000) return `${number.format(value / 1000000)}م`;
+  if (abs >= 1000) return `${number.format(value / 1000)}ألف`;
+  return number.format(value);
 }
 
 function drawEmpty(ctx, canvas) {
@@ -346,9 +402,11 @@ function buildReport() {
   const table = (title, rows) => `<section class="report-section"><h2>${title}</h2><table>${rows.join("")}</table></section>`;
   $("#printReport").innerHTML = `
     <article class="report-page report-cover">
+      <img class="report-logo" src="/assets/logo.svg" alt="بداية الطريق العقارية">
       <p class="gold">Real Estate Investment Calculator</p>
       <h1>تقرير جدوى الاستثمار العقاري</h1>
       <p>تاريخ إنشاء التقرير: ${new Date().toLocaleString("ar-SA")}</p>
+      <p>نوع العملية: ${state.mode === "purchase" ? "شراء عقار" : "استثمار على أرض مستأجرة"}</p>
       <p>نوع العقار: ${selected[1]}</p>
       <p>ملخص تنفيذي: تبلغ تكلفة المشروع ${currency.format(r.totalProjectCost)}، بإيراد سنوي ${currency.format(r.annualRevenue)} وصافي دخل تشغيلي ${currency.format(r.noi)}. العائد السنوي على التكلفة ${number.format(r.yieldOnCost)}٪ والتقييم ${r.rating}.</p>
       <div class="report-grid">
@@ -359,15 +417,18 @@ function buildReport() {
       </div>
     </article>
     <article class="report-page">
+      <img class="report-watermark" src="/assets/logo.svg" alt="">
       ${table("المدخلات الأساسية", [
+        row("نوع العملية", state.mode === "purchase" ? "شراء عقار" : "استثمار على أرض مستأجرة"),
         row("نوع العقار", selected[1]),
         row("مساحة الأرض", `${number.format(value("landArea"))} م²`),
         row("مسطح البناء", `${number.format(value("builtUpArea"))} م²`),
+        row("نسبة المسطح إلى الأرض", value("landArea") > 0 ? `${number.format((value("builtUpArea") / value("landArea")) * 100)}٪` : "0٪"),
         row("نسبة الإشغال", `${number.format(value("occupancyRate"))}٪`)
       ])}
       ${table("تكاليف الأرض", [
         row("إجمالي قيمة الأرض", currency.format(r.landValue)),
-        row("رسوم السعي أو الوساطة", currency.format(value("brokerageFees"))),
+        row("رسوم السعي أو الوساطة", currency.format(r.brokerageFees)),
         row("ضريبة التصرفات العقارية", currency.format(value("realEstateTransactionTax"))),
         row("رسوم أخرى", currency.format(value("otherLandFees"))),
         row("إجمالي تكلفة تملك الأرض", currency.format(r.totalLandCost))
@@ -382,6 +443,7 @@ function buildReport() {
       ])}
     </article>
     <article class="report-page">
+      <img class="report-watermark" src="/assets/logo.svg" alt="">
       ${table("الإيرادات", [
         row(selected[3], number.format(value("unitsCount"))),
         row(selected[4], currency.format(value("averageMonthlyRent"))),
@@ -390,6 +452,7 @@ function buildReport() {
         row("إجمالي الدخل السنوي", currency.format(r.annualRevenue))
       ])}
       ${table("المصاريف التشغيلية", [
+        row("الصيانة السنوية", currency.format(r.annualMaintenance)),
         row("إجمالي المصاريف التشغيلية", currency.format(r.operatingExpenses)),
         row("NOI", currency.format(r.noi))
       ])}
@@ -412,6 +475,7 @@ function buildReport() {
       ])}
     </article>
     <article class="report-page">
+      <img class="report-watermark" src="/assets/logo.svg" alt="">
       <section class="report-section">
         <h2>الرسوم البيانية</h2>
         <div class="report-charts">
@@ -426,6 +490,43 @@ function buildReport() {
   `;
 }
 
+async function exportPDF() {
+  buildReport();
+  const report = $("#printReport");
+  const actions = $(".pdf-actions");
+  const button = document.querySelector("[data-export]");
+  actions?.classList.add("is-exporting");
+  if (button) button.textContent = "جاري إنشاء PDF...";
+  try {
+    if (!window.html2canvas || !window.jspdf) {
+      throw new Error("PDF libraries are not ready");
+    }
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+    const pages = [...report.querySelectorAll(".report-page")];
+    for (let index = 0; index < pages.length; index += 1) {
+      const canvas = await window.html2canvas(pages[index], {
+        scale: 2,
+        backgroundColor: "#ffffff",
+        useCORS: true
+      });
+      const img = canvas.toDataURL("image/jpeg", 0.96);
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      if (index > 0) pdf.addPage();
+      pdf.addImage(img, "JPEG", 0, 0, pageWidth, pageHeight);
+    }
+    pdf.save(`تقرير-جدوى-الاستثمار-العقاري-${Date.now()}.pdf`);
+    saveProject();
+  } catch (error) {
+    $("#errorMessage").textContent = "تعذر إنشاء PDF مباشرة. تأكد من اتصال الإنترنت ثم حاول مرة أخرى.";
+    $("#errorMessage").classList.remove("is-hidden");
+  } finally {
+    actions?.classList.remove("is-exporting");
+    if (button) button.textContent = "تصدير تقرير PDF";
+  }
+}
+
 function recommendation(rating) {
   if (rating === "ممتاز") return "المؤشرات قوية والعائد يتجاوز 10٪. يوصى بالانتقال إلى دراسة تفصيلية تشمل حساسية الإشغال والتكلفة.";
   if (rating === "جيد") return "العائد جيد ومناسب للمراجعة الاستثمارية مع ضرورة ضبط تكاليف التنفيذ وشروط التمويل.";
@@ -433,9 +534,61 @@ function recommendation(rating) {
   return "العائد أقل من المستوى المستهدف. يوصى بإعادة التفاوض على التكلفة أو إعادة تصميم نموذج الإيرادات.";
 }
 
+function collectProject() {
+  const fields = {};
+  $$("input, select").forEach((field) => {
+    fields[field.name] = field.type === "checkbox" ? field.checked : field.value;
+  });
+  return {
+    mode: state.mode,
+    propertyType: state.propertyType,
+    step: state.step,
+    fields,
+    savedAt: new Date().toISOString(),
+    result: calculate()
+  };
+}
+
+function saveProject() {
+  localStorage.setItem(storageKey, JSON.stringify(collectProject()));
+  const saveButton = document.querySelector("[data-save-project]");
+  if (saveButton) {
+    const oldText = saveButton.textContent;
+    saveButton.textContent = "تم حفظ المشروع";
+    setTimeout(() => { saveButton.textContent = oldText; }, 1600);
+  }
+}
+
+function loadProject() {
+  const saved = localStorage.getItem(storageKey);
+  if (!saved) {
+    $("#errorMessage").textContent = "لا يوجد مشروع محفوظ على هذا المتصفح.";
+    $("#errorMessage").classList.remove("is-hidden");
+    return false;
+  }
+  const project = JSON.parse(saved);
+  state.mode = project.mode || "purchase";
+  state.propertyType = project.propertyType || "residentialBuilding";
+  Object.entries(project.fields || {}).forEach(([name, savedValue]) => {
+    const field = document.querySelector(`[name="${name}"]`);
+    if (!field) return;
+    if (field.type === "checkbox") field.checked = Boolean(savedValue);
+    else field.value = savedValue;
+  });
+  renderPropertyTypes();
+  updatePropertyLabels();
+  $(".finance-fields").classList.toggle("is-hidden", !value("hasFinancing"));
+  $(".finance-empty").classList.toggle("is-hidden", value("hasFinancing"));
+  $("#splash").classList.add("is-hidden");
+  $("#wizard").classList.remove("is-hidden");
+  goToStep(Math.min(project.step || 0, steps.length - 1));
+  return true;
+}
+
 function resetAll() {
   document.getElementById("calculatorForm").reset();
   state.propertyType = "residentialBuilding";
+  state.mode = "purchase";
   state.step = 0;
   renderPropertyTypes();
   updatePropertyLabels();
@@ -445,9 +598,16 @@ function resetAll() {
 document.addEventListener("input", (event) => {
   if (event.target.matches("input, select")) {
     if (event.target.type === "number" && Number(event.target.value) < 0) event.target.value = 0;
+    if (event.target.name === "constructionLandRatio" && value("landArea") > 0) {
+      document.querySelector('[name="builtUpArea"]').value = (value("landArea") * value("constructionLandRatio")) / 100;
+    }
+    if (event.target.name === "builtUpArea" && value("landArea") > 0) {
+      document.querySelector('[name="constructionLandRatio"]').value = (value("builtUpArea") / value("landArea")) * 100;
+    }
     $(".finance-fields").classList.toggle("is-hidden", !value("hasFinancing"));
     $(".finance-empty").classList.toggle("is-hidden", value("hasFinancing"));
     syncOutputs();
+    saveProject();
   }
 });
 
@@ -459,24 +619,33 @@ document.addEventListener("click", (event) => {
     updatePropertyLabels();
     syncOutputs();
   }
-  if (event.target.matches("[data-start]")) {
+  const modeButton = event.target.closest("[data-mode]");
+  if (modeButton) {
+    state.mode = modeButton.dataset.mode;
+    state.propertyType = state.mode === "leaseInvestment" ? "commercialShowrooms" : "residentialBuilding";
+    renderPropertyTypes();
+    updatePropertyLabels();
     $("#splash").classList.add("is-hidden");
     $("#wizard").classList.remove("is-hidden");
     goToStep(0);
+    saveProject();
+  }
+  if (event.target.matches("[data-load-project]")) {
+    loadProject();
   }
   if (event.target.matches("[data-next]")) {
     if (state.step === steps.length - 1) {
-      buildReport();
-      window.print();
+      exportPDF();
     } else if (validateStep()) {
       goToStep(state.step + 1);
+      if (state.step === steps.length - 1) saveProject();
     }
   }
   if (event.target.matches("[data-prev]")) goToStep(state.step - 1);
   if (event.target.matches("[data-reset]")) resetAll();
+  if (event.target.matches("[data-save-project]")) saveProject();
   if (event.target.matches("[data-export]")) {
-    buildReport();
-    window.print();
+    exportPDF();
   }
 });
 

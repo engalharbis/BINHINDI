@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="بداية الطريق العقارية">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#10151b"/>
+      <stop offset="1" stop-color="#2d2d28"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8f6e28"/>
+      <stop offset=".42" stop-color="#ecd16b"/>
+      <stop offset="1" stop-color="#9d792f"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="58" fill="url(#bg)"/>
+  <g fill="none" stroke="url(#gold)" stroke-width="14" stroke-linejoin="round">
+    <path d="M76 352V158l64-45v239"/>
+    <path d="M140 352V92l68-46v306"/>
+    <path d="M208 352V60l48-32 48 32v292"/>
+    <path d="M304 352V120l68 48v184"/>
+    <path d="M372 352V198l64 44v110"/>
+  </g>
+  <path d="M81 360h350L256 230z" fill="url(#gold)" opacity=".88"/>
+  <path d="M208 360l48-116 48 116h-34l-14-55-14 55z" fill="#20231f"/>
+  <path d="M234 384h44l18 78h-80z" fill="url(#gold)"/>
+  <path d="M248 394h16v20h-16zm0 38h16v18h-16z" fill="#20231f" opacity=".8"/>
+  <text x="256" y="438" text-anchor="middle" font-family="Tahoma, Arial, sans-serif" font-weight="800" font-size="26" fill="url(#gold)">بداية الطريق العقارية</text>
+  <text x="256" y="468" text-anchor="middle" font-family="Arial, sans-serif" font-weight="800" font-size="20" letter-spacing="1.4" fill="url(#gold)">START ROAD REAL ESTATE</text>
+</svg>
