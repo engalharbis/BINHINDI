@@ -279,7 +279,9 @@ h3 {
 }
 
 .form-grid,
-.finance-fields {
+.finance-fields,
+.additional-details,
+.operating-details {
   display: grid;
   gap: 13px;
 }
@@ -440,6 +442,53 @@ select:focus {
 
 .chart-card h4 {
   font-size: 1rem;
+}
+
+.cashflow-card {
+  display: grid;
+  gap: 14px;
+}
+
+.table-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.cashflow-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+  background: white;
+}
+
+.cashflow-table th,
+.cashflow-table td {
+  padding: 11px 10px;
+  border-bottom: 1px solid rgba(17, 17, 15, 0.08);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.cashflow-table th {
+  background: var(--black);
+  color: white;
+  font-weight: 850;
+}
+
+.cashflow-table tr.is-payback td {
+  background: rgba(198, 155, 79, 0.16);
+  font-weight: 850;
+}
+
+.payback-note {
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--black);
+  color: var(--gold);
+  font-weight: 850;
+  text-align: center;
 }
 
 canvas {
@@ -612,7 +661,9 @@ canvas {
   }
 
   .form-grid,
-  .finance-fields {
+  .finance-fields,
+  .additional-details,
+  .operating-details {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
