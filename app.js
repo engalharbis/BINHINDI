@@ -27,15 +27,22 @@ const state = {
 
 const storageKey = "realEstateInvestmentCalculator:lastProject";
 
-const currency = new Intl.NumberFormat("ar-SA", {
-  style: "currency",
-  currency: "SAR",
-  maximumFractionDigits: 0
-});
-
-const number = new Intl.NumberFormat("ar-SA", {
+const englishNumber = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 2
 });
+
+const number = englishNumber;
+
+function money(value) {
+  return `SAR ${new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value || 0)}`;
+}
+
+const currency = { format: money };
+
+const chartMeta = {
+  pie: [],
+  line: []
+};
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
@@ -304,6 +311,9 @@ function renderKpis(r) {
 function renderCashflowTable(r) {
   const table = $("#cashflowTable");
   if (!table) return;
+  const flows = displayCashFlows(r);
+  const paybackYear = displayPaybackYear(r, flows);
+  const totals = cashflowTotals(flows);
   table.innerHTML = `
     <thead>
       <tr>
@@ -317,9 +327,9 @@ function renderCashflowTable(r) {
       </tr>
     </thead>
     <tbody>
-      ${r.cashFlows.map((flow) => `
-        <tr class="${r.paybackYear === flow.year ? "is-payback" : ""}">
-          <td>${flow.year}${r.paybackYear === flow.year ? " ✓" : ""}</td>
+      ${flows.map((flow) => `
+        <tr class="${paybackYear === flow.year ? "is-payback" : ""}">
+          <td><strong>${flow.year}${paybackYear === flow.year ? " ✔" : ""}</strong></td>
           <td>${currency.format(flow.revenue)}</td>
           <td>${currency.format(flow.landRent)}</td>
           <td>${currency.format(flow.expenses)}</td>
@@ -329,9 +339,63 @@ function renderCashflowTable(r) {
         </tr>
       `).join("")}
     </tbody>
+    <tfoot>
+      <tr>
+        <td>الإجمالي</td>
+        <td>${currency.format(totals.revenue)}</td>
+        <td>${currency.format(totals.landRent)}</td>
+        <td>${currency.format(totals.expenses)}</td>
+        <td>${currency.format(totals.financing)}</td>
+        <td>${currency.format(totals.netAfterDebt)}</td>
+        <td>${currency.format(totals.finalCumulative)}</td>
+      </tr>
+    </tfoot>
   `;
   const payback = document.querySelector('[data-out="paybackStatus"]');
-  if (payback) payback.textContent = r.paybackYear ? `تم الاسترداد في السنة ${r.paybackYear}` : "لم يتم الاسترداد خلال فترة الدراسة";
+  if (payback) payback.textContent = paybackYear ? `تم استرداد رأس المال في السنة ${paybackYear}` : "لم يتم الاسترداد خلال مدة المشروع";
+}
+
+function getProjectYears() {
+  const years = value("hasFinancing") && value("termYears") ? Math.round(value("termYears")) : 10;
+  return Math.min(Math.max(years, 1), 30);
+}
+
+function displayCashFlows(r) {
+  const years = getProjectYears();
+  const annualDebtService = r.annualDebtService || 0;
+  const annualLandRent = r.annualLandRent || 0;
+  return Array.from({ length: years }, (_, index) => {
+    const year = index + 1;
+    const revenue = r.annualRevenue * Math.pow(1.025, index);
+    const expenses = r.operatingExpenses * Math.pow(1.018, index);
+    const landRent = annualLandRent * Math.pow(1.018, index);
+    const noi = revenue - expenses - landRent;
+    const netAfterDebt = noi - annualDebtService;
+    return { year, revenue, landRent, expenses, financing: annualDebtService, noi, netAfterDebt, cumulative: 0 };
+  }).reduce((flows, flow) => {
+    const previous = flows.length ? flows[flows.length - 1].cumulative : -recoveryBase(r);
+    flows.push({ ...flow, cumulative: previous + flow.netAfterDebt });
+    return flows;
+  }, []);
+}
+
+function recoveryBase(r) {
+  return state.mode === "leaseInvestment" ? r.totalDevelopmentCost : r.totalProjectCost;
+}
+
+function displayPaybackYear(r, flows = displayCashFlows(r)) {
+  return flows.find((flow) => flow.cumulative >= 0)?.year || null;
+}
+
+function cashflowTotals(flows) {
+  return flows.reduce((totals, flow, index) => ({
+    revenue: totals.revenue + flow.revenue,
+    landRent: totals.landRent + flow.landRent,
+    expenses: totals.expenses + flow.expenses,
+    financing: totals.financing + flow.financing,
+    netAfterDebt: totals.netAfterDebt + flow.netAfterDebt,
+    finalCumulative: index === flows.length - 1 ? flow.cumulative : totals.finalCumulative
+  }), { revenue: 0, landRent: 0, expenses: 0, financing: 0, netAfterDebt: 0, finalCumulative: 0 });
 }
 
 function validateStep() {
@@ -484,14 +548,191 @@ function renderCharts(r) {
     { label: "الرسوم", value: r.brokerageFees + (state.mode === "purchase" ? value("realEstateTransactionTax") : 0) + value("otherLandFees") },
     { label: "التكاليف الأخرى", value: r.additionalCosts + r.contingencyAmount }
   ].filter((item) => item.value > 0);
-  drawPie($("#pieChart"), costItems);
+  drawPieEnhanced($("#pieChart"), costItems);
   drawBar($("#barChart"), [
     { label: "الإيراد", value: r.annualRevenue },
     { label: "المصاريف", value: r.operatingExpenses },
     { label: "NOI", value: r.noi },
     { label: "بعد التمويل", value: r.netIncomeAfterFinancing }
   ]);
-  drawLine($("#lineChart"), r.cashFlows);
+  drawLineEnhanced($("#lineChart"), displayCashFlows(r));
+}
+
+function drawPieEnhanced(canvas, items) {
+  const ctx = canvas.getContext("2d");
+  const total = items.reduce((sum, item) => sum + Math.max(item.value, 0), 0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  chartMeta.pie = [];
+  renderPieLegend(items, total);
+  if (!total || items.length < 2) return drawEmpty(ctx, canvas, "لا توجد تفاصيل كافية لعرض توزيع التكلفة");
+  const colors = ["#2f855a", "#c69b4f", "#4a5568", "#c53030", "#2b6cb0"];
+  const centerX = canvas.width / 2;
+  const centerY = 145;
+  const radius = 112;
+  let start = -Math.PI / 2;
+  items.forEach((item, index) => {
+    const slice = (item.value / total) * Math.PI * 2;
+    const middle = start + slice / 2;
+    ctx.beginPath();
+    ctx.moveTo(centerX, centerY);
+    ctx.arc(centerX, centerY, radius, start, start + slice);
+    ctx.closePath();
+    ctx.fillStyle = colors[index % colors.length];
+    ctx.fill();
+    chartMeta.pie.push({ ...item, color: colors[index % colors.length], start, end: start + slice, total, centerX, centerY, radius });
+    if (slice > 0.18) {
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 16px Tahoma";
+      ctx.textAlign = "center";
+      ctx.fillText(`${Math.round((item.value / total) * 100)}%`, centerX + Math.cos(middle) * 68, centerY + Math.sin(middle) * 68);
+    }
+    start += slice;
+  });
+  attachPieTooltip(canvas);
+}
+
+function renderPieLegend(items, total) {
+  const legend = $("#pieLegend");
+  if (!legend) return;
+  if (!total || items.length < 2) {
+    legend.innerHTML = "";
+    return;
+  }
+  const colors = ["#2f855a", "#c69b4f", "#4a5568", "#c53030", "#2b6cb0"];
+  legend.innerHTML = items.map((item, index) => `
+    <div class="legend-row">
+      <span><i style="background:${colors[index % colors.length]}"></i> ${item.label}</span>
+      <strong>${number.format((item.value / total) * 100)}% · ${currency.format(item.value)}</strong>
+    </div>
+  `).join("");
+}
+
+function drawLineEnhanced(canvas, flows) {
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  chartMeta.line = [];
+  const series = [
+    { key: "revenue", label: "الإيرادات", color: "#2f855a" },
+    { key: "expenses", label: "المصاريف", color: "#c53030" },
+    { key: "financing", label: "التمويل", color: "#4a5568" }
+  ].filter((item) => item.key !== "financing" || flows.some((flow) => flow.financing > 0));
+  const values = series.flatMap((item) => flows.map((flow) => Math.max(flow[item.key], 0)));
+  const max = Math.max(...values, 1);
+  const left = 66;
+  const right = canvas.width - 30;
+  const top = 34;
+  const bottom = canvas.height - 58;
+  const height = bottom - top;
+  ctx.strokeStyle = "rgba(17,17,15,0.14)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(left, top);
+  ctx.lineTo(left, bottom);
+  ctx.lineTo(right, bottom);
+  ctx.stroke();
+  ctx.fillStyle = "#68645c";
+  ctx.font = "bold 13px Tahoma";
+  ctx.textAlign = "center";
+  ctx.fillText("السنة", (left + right) / 2, canvas.height - 16);
+  ctx.save();
+  ctx.translate(18, (top + bottom) / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText("القيمة (SAR)", 0, 0);
+  ctx.restore();
+  series.forEach((item) => {
+    ctx.strokeStyle = item.color;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    flows.forEach((flow, index) => {
+      const x = left + index * ((right - left) / Math.max(flows.length - 1, 1));
+      const y = bottom - (Math.max(flow[item.key], 0) / max) * height;
+      if (index === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    flows.forEach((flow, index) => {
+      const x = left + index * ((right - left) / Math.max(flows.length - 1, 1));
+      const y = bottom - (Math.max(flow[item.key], 0) / max) * height;
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(x, y, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = item.color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      chartMeta.line.push({ x, y, value: flow[item.key], year: flow.year, label: item.label, color: item.color });
+    });
+  });
+  renderLineLegend(series);
+  attachLineTooltip(canvas);
+}
+
+function renderLineLegend(series) {
+  const legend = $("#lineLegend");
+  if (!legend) return;
+  legend.innerHTML = series.map((item) => `
+    <div class="legend-row">
+      <span><i style="background:${item.color}"></i> ${item.label}</span>
+      <strong>خط سنوي</strong>
+    </div>
+  `).join("");
+}
+
+function tooltipNode() {
+  let node = document.querySelector(".chart-tooltip");
+  if (!node) {
+    node = document.createElement("div");
+    node.className = "chart-tooltip is-hidden";
+    document.body.appendChild(node);
+  }
+  return node;
+}
+
+function showTooltip(event, html) {
+  const node = tooltipNode();
+  node.innerHTML = html;
+  node.style.left = `${event.clientX}px`;
+  node.style.top = `${event.clientY}px`;
+  node.classList.remove("is-hidden");
+}
+
+function hideTooltip() {
+  tooltipNode().classList.add("is-hidden");
+}
+
+function attachPieTooltip(canvas) {
+  canvas.onmousemove = (event) => {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = (event.clientX - rect.left) * scaleX;
+    const y = (event.clientY - rect.top) * scaleY;
+    const item = chartMeta.pie.find((slice) => {
+      const dx = x - slice.centerX;
+      const dy = y - slice.centerY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      let angle = Math.atan2(dy, dx);
+      while (angle < slice.start) angle += Math.PI * 2;
+      return distance <= slice.radius && angle >= slice.start && angle <= slice.end;
+    });
+    if (!item) return hideTooltip();
+    showTooltip(event, `<strong>${item.label}</strong><br>${currency.format(item.value)}<br>${number.format((item.value / item.total) * 100)}%`);
+  };
+  canvas.onmouseleave = hideTooltip;
+}
+
+function attachLineTooltip(canvas) {
+  canvas.onmousemove = (event) => {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = (event.clientX - rect.left) * scaleX;
+    const y = (event.clientY - rect.top) * scaleY;
+    const point = chartMeta.line.find((item) => Math.hypot(item.x - x, item.y - y) <= 10);
+    if (!point) return hideTooltip();
+    showTooltip(event, `<strong>${point.label}</strong><br>السنة ${point.year}<br>${currency.format(point.value)}`);
+  };
+  canvas.onmouseleave = hideTooltip;
 }
 
 function buildReport() {
@@ -501,26 +742,43 @@ function buildReport() {
   const pieImage = $("#pieChart")?.toDataURL("image/png") ?? "";
   const barImage = $("#barChart")?.toDataURL("image/png") ?? "";
   const lineImage = $("#lineChart")?.toDataURL("image/png") ?? "";
+  const reportFlows = displayCashFlows(r);
+  const reportTotals = cashflowTotals(reportFlows);
+  const reportPaybackYear = displayPaybackYear(r, reportFlows);
+  const reportPieLegend = chartMeta.pie.map((item) => `<div>${item.label}: ${currency.format(item.value)} · ${number.format((item.value / item.total) * 100)}%</div>`).join("");
   const row = (label, val) => `<tr><td>${label}</td><td>${val}</td></tr>`;
   const table = (title, rows) => `<section class="report-section"><h2>${title}</h2><table>${rows.join("")}</table></section>`;
   $("#printReport").innerHTML = `
     <article class="report-page report-cover">
-      <img class="report-logo" src="/assets/logo.svg" alt="بداية الطريق العقارية">
-      <p class="gold">Real Estate Investment Calculator</p>
+      <div class="report-brand">
+        <div class="report-brand-title">شركة بداية الطريق العقارية<br>Bidayat Al-Tariq Real Estate</div>
+        <img class="report-logo" src="/assets/logo.svg" alt="بداية الطريق العقارية">
+      </div>
       <h1>تقرير جدوى الاستثمار العقاري</h1>
-      <p>تاريخ إنشاء التقرير: ${new Date().toLocaleString("ar-SA")}</p>
-      <p>نوع العملية: ${state.mode === "purchase" ? "شراء عقار" : "استثمار على أرض مستأجرة"}</p>
-      <p>نوع العقار: ${selected[1]}</p>
-      <p>ملخص تنفيذي: تبلغ تكلفة المشروع ${currency.format(r.totalProjectCost)}، بإيراد سنوي ${currency.format(r.annualRevenue)} وصافي دخل تشغيلي ${currency.format(r.noi)}. العائد السنوي على التكلفة ${number.format(r.yieldOnCost)}٪ والتقييم ${r.rating}.</p>
+      <div class="report-meta-grid">
+        <div class="report-meta-card"><span>تاريخ التقرير</span><strong>${new Date().toLocaleDateString("en-US")}</strong></div>
+        <div class="report-meta-card"><span>نوع العملية</span><strong>${state.mode === "purchase" ? "شراء عقار" : "استثمار على أرض مستأجرة"}</strong></div>
+        <div class="report-meta-card"><span>نوع العقار</span><strong>${selected[1]}</strong></div>
+      </div>
+      <section class="report-summary">
+        <h2>ملخص تنفيذي</h2>
+        <div class="report-summary-grid">
+          <div class="report-summary-card"><span>إجمالي التكلفة</span><strong>${currency.format(r.totalProjectCost)}</strong></div>
+          <div class="report-summary-card"><span>الإيراد السنوي</span><strong>${currency.format(r.annualRevenue)}</strong></div>
+          <div class="report-summary-card"><span>صافي الدخل</span><strong>${currency.format(r.noi)}</strong></div>
+        </div>
+      </section>
       <div class="report-grid">
-        <div class="report-kpi">إجمالي تكلفة المشروع<strong>${currency.format(r.totalProjectCost)}</strong></div>
-        <div class="report-kpi">Yield on Cost<strong>${number.format(r.yieldOnCost)}٪</strong></div>
-        <div class="report-kpi">NOI<strong>${currency.format(r.noi)}</strong></div>
+        <div class="report-kpi">Yield on Cost<strong>${number.format(r.yieldOnCost)}%</strong></div>
+        <div class="report-kpi">ROI<strong>${number.format(r.roi)}%</strong></div>
+        <div class="report-kpi">NPV<strong>${currency.format(r.npv)}</strong></div>
         <div class="report-kpi">التقييم<strong>${r.rating}</strong></div>
       </div>
+      <div class="report-footer">Fares Alharbi</div>
     </article>
     <article class="report-page">
       <img class="report-watermark" src="/assets/logo.svg" alt="">
+      <div class="report-footer">Fares Alharbi</div>
       ${table("المدخلات الأساسية", [
         row("نوع العملية", state.mode === "purchase" ? "شراء عقار" : "استثمار على أرض مستأجرة"),
         row("نوع العقار", selected[1]),
@@ -549,6 +807,7 @@ function buildReport() {
     </article>
     <article class="report-page">
       <img class="report-watermark" src="/assets/logo.svg" alt="">
+      <div class="report-footer">Fares Alharbi</div>
       ${table("الإيرادات", [
         row(selected[3], number.format(value("unitsCount"))),
         row(selected[4], currency.format(value("averageMonthlyRent"))),
@@ -585,13 +844,14 @@ function buildReport() {
     </article>
     <article class="report-page">
       <img class="report-watermark" src="/assets/logo.svg" alt="">
+      <div class="report-footer">Fares Alharbi</div>
       <section class="report-section">
-        <h2>جدول التدفقات النقدية</h2>
+        <h2>التقرير المالي</h2>
         <table>
           <tr><td>السنة</td><td>الإيرادات</td><td>إيجار الأرض</td><td>المصاريف</td><td>التمويل</td><td>صافي التدفق</td><td>التراكمي</td></tr>
-          ${r.cashFlows.map((flow) => `
+          ${reportFlows.map((flow) => `
             <tr>
-              <td>${flow.year}${r.paybackYear === flow.year ? " ✓" : ""}</td>
+              <td>${flow.year}${reportPaybackYear === flow.year ? " ✔" : ""}</td>
               <td>${currency.format(flow.revenue)}</td>
               <td>${currency.format(flow.landRent)}</td>
               <td>${currency.format(flow.expenses)}</td>
@@ -600,14 +860,24 @@ function buildReport() {
               <td>${currency.format(flow.cumulative)}</td>
             </tr>
           `).join("")}
+          <tr>
+            <td><strong>الإجمالي</strong></td>
+            <td><strong>${currency.format(reportTotals.revenue)}</strong></td>
+            <td><strong>${currency.format(reportTotals.landRent)}</strong></td>
+            <td><strong>${currency.format(reportTotals.expenses)}</strong></td>
+            <td><strong>${currency.format(reportTotals.financing)}</strong></td>
+            <td><strong>${currency.format(reportTotals.netAfterDebt)}</strong></td>
+            <td><strong>${currency.format(reportTotals.finalCumulative)}</strong></td>
+          </tr>
         </table>
+        <p class="report-note">${reportPaybackYear ? `تم استرداد رأس المال في السنة ${reportPaybackYear}` : "لم يتم الاسترداد خلال مدة المشروع"}</p>
       </section>
       <section class="report-section">
         <h2>الرسوم البيانية</h2>
         <div class="report-charts">
-          <figure><img src="${pieImage}" alt="توزيع تكلفة المشروع"><figcaption>توزيع تكلفة المشروع</figcaption></figure>
+          <figure><img src="${pieImage}" alt="توزيع تكلفة المشروع"><figcaption>توزيع تكلفة المشروع</figcaption><div class="report-chart-legend">${reportPieLegend}</div></figure>
           <figure><img src="${barImage}" alt="مقارنة الدخل والمصاريف"><figcaption>مقارنة الدخل والمصاريف</figcaption></figure>
-          <figure class="wide"><img src="${lineImage}" alt="التدفقات النقدية لعشر سنوات"><figcaption>التدفقات النقدية لعشر سنوات</figcaption></figure>
+          <figure class="wide"><img src="${lineImage}" alt="التدفقات النقدية حسب مدة المشروع"><figcaption>التدفقات النقدية حسب مدة المشروع</figcaption></figure>
         </div>
       </section>
       <section class="report-section"><h2>التوصية المختصرة</h2><p>${recommendation(r.rating)}</p></section>

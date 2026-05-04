@@ -12,6 +12,42 @@
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Tahoma, Arial, sans-serif;
 }
 
+@media print {
+  .report-page {
+    padding: 48px !important;
+  }
+
+  .report-cover {
+    background: linear-gradient(135deg, #11110f 0%, #1e211d 78%, #3d321d 100%) !important;
+  }
+
+  .report-cover h1 {
+    margin-top: 42px !important;
+    font-size: 48px !important;
+  }
+
+  .report-kpi,
+  .report-section {
+    border-radius: 12px !important;
+    padding: 18px !important;
+  }
+
+  .report-section h2 {
+    font-size: 23px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .report-section table,
+  table {
+    font-size: 14px !important;
+  }
+
+  .report-section td,
+  td {
+    padding: 11px 10px !important;
+  }
+}
+
 * {
   box-sizing: border-box;
 }
@@ -436,6 +472,7 @@ select:focus {
 }
 
 .chart-card {
+  position: relative;
   display: grid;
   gap: 12px;
 }
@@ -459,13 +496,13 @@ select:focus {
   width: 100%;
   min-width: 760px;
   border-collapse: collapse;
-  font-size: 0.84rem;
+  font-size: 0.96rem;
   background: white;
 }
 
 .cashflow-table th,
 .cashflow-table td {
-  padding: 11px 10px;
+  padding: 13px 12px;
   border-bottom: 1px solid rgba(17, 17, 15, 0.08);
   text-align: right;
   white-space: nowrap;
@@ -477,9 +514,20 @@ select:focus {
   font-weight: 850;
 }
 
+.cashflow-table tbody tr:nth-child(even) td {
+  background: rgba(17, 17, 15, 0.035);
+}
+
 .cashflow-table tr.is-payback td {
-  background: rgba(198, 155, 79, 0.16);
+  background: rgba(73, 173, 112, 0.16) !important;
   font-weight: 850;
+  color: #17603a;
+}
+
+.cashflow-table tfoot td {
+  background: var(--black);
+  color: white;
+  font-weight: 900;
 }
 
 .payback-note {
@@ -494,6 +542,45 @@ select:focus {
 canvas {
   width: 100%;
   height: auto;
+}
+
+.chart-legend {
+  display: grid;
+  gap: 8px;
+  font-size: 0.86rem;
+  color: var(--muted);
+}
+
+.legend-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(17, 17, 15, 0.035);
+}
+
+.legend-row i {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 12px;
+  border-radius: 50%;
+}
+
+.chart-tooltip {
+  position: fixed;
+  z-index: 20;
+  pointer-events: none;
+  min-width: 150px;
+  padding: 9px 11px;
+  border-radius: 8px;
+  background: rgba(17, 17, 15, 0.94);
+  color: white;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  box-shadow: 0 18px 34px rgba(17, 17, 15, 0.24);
+  transform: translate(-50%, calc(-100% - 12px));
 }
 
 .pdf-actions {
@@ -524,7 +611,7 @@ canvas {
   position: relative;
   width: 794px;
   min-height: 1123px;
-  padding: 46px;
+  padding: 48px;
   background: #ffffff;
   color: #11110f;
   direction: rtl;
@@ -532,13 +619,14 @@ canvas {
 }
 
 .report-cover {
-  background: #11110f;
+  background: linear-gradient(135deg, #11110f 0%, #1e211d 78%, #3d321d 100%);
   color: #ffffff;
 }
 
 .report-cover h1 {
-  margin-top: 90px;
-  font-size: 42px;
+  margin-top: 42px;
+  font-size: 48px;
+  line-height: 1.25;
 }
 
 .report-cover .gold {
@@ -546,10 +634,63 @@ canvas {
 }
 
 .report-logo {
-  width: 126px;
-  height: 126px;
+  width: 136px;
+  height: 136px;
   object-fit: contain;
   border-radius: 26px;
+}
+
+.report-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+  padding-bottom: 22px;
+  border-bottom: 2px solid rgba(198, 155, 79, 0.55);
+}
+
+.report-brand-title {
+  text-align: right;
+  color: #c69b4f;
+  font-weight: 900;
+  line-height: 1.7;
+  font-size: 18px;
+}
+
+.report-meta-grid,
+.report-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-top: 28px;
+}
+
+.report-meta-card,
+.report-summary-card {
+  padding: 16px;
+  border: 1px solid rgba(198, 155, 79, 0.35);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 18px 32px rgba(0, 0, 0, 0.18);
+}
+
+.report-meta-card span,
+.report-summary-card span {
+  display: block;
+  margin-bottom: 8px;
+  color: rgba(255, 255, 255, 0.72);
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.report-meta-card strong,
+.report-summary-card strong {
+  color: white;
+  font-size: 17px;
+}
+
+.report-summary {
+  margin-top: 30px;
 }
 
 .report-watermark {
@@ -571,9 +712,10 @@ canvas {
 .report-kpi,
 .report-section {
   border: 1px solid #ded8ca;
-  border-radius: 8px;
-  padding: 14px;
+  border-radius: 12px;
+  padding: 18px;
   break-inside: avoid;
+  box-shadow: 0 14px 28px rgba(17, 17, 15, 0.08);
 }
 
 .report-kpi strong {
@@ -588,8 +730,9 @@ canvas {
 }
 
 .report-section h2 {
-  font-size: 20px;
-  margin-bottom: 12px;
+  font-size: 23px;
+  margin-bottom: 16px;
+  font-weight: 900;
 }
 
 .report-charts {
@@ -622,15 +765,28 @@ canvas {
   font-size: 12px;
 }
 
+.report-chart-legend {
+  margin-top: 8px;
+  display: grid;
+  gap: 5px;
+  color: #5f5a52;
+  font-size: 11px;
+  text-align: right;
+}
+
 .report-section table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .report-section td {
   border-bottom: 1px solid #eee7dc;
-  padding: 8px;
+  padding: 11px 10px;
+}
+
+.report-section tr:nth-child(even) td {
+  background: #f8f5ee;
 }
 
 .report-section td:first-child {
@@ -647,6 +803,15 @@ canvas {
   padding: 14px;
   background: #f6f4ef;
   border-radius: 8px;
+  font-weight: 800;
+}
+
+.report-footer {
+  position: absolute;
+  left: 46px;
+  bottom: 22px;
+  color: #6d675e;
+  font-size: 11px;
   font-weight: 800;
 }
 
@@ -828,5 +993,41 @@ canvas {
     background: #f6f4ef;
     border-radius: 8px;
     font-weight: 800;
+  }
+}
+
+@media print {
+  .report-page {
+    padding: 48px !important;
+  }
+
+  .report-cover {
+    background: linear-gradient(135deg, #11110f 0%, #1e211d 78%, #3d321d 100%) !important;
+  }
+
+  .report-cover h1 {
+    margin-top: 42px !important;
+    font-size: 48px !important;
+  }
+
+  .report-kpi,
+  .report-section {
+    border-radius: 12px !important;
+    padding: 18px !important;
+  }
+
+  .report-section h2 {
+    font-size: 23px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .report-section table,
+  table {
+    font-size: 14px !important;
+  }
+
+  .report-section td,
+  td {
+    padding: 11px 10px !important;
   }
 }
