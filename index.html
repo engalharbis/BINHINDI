@@ -14,21 +14,23 @@
     <main class="app-shell">
       <section id="splash" class="splash">
         <img class="logo-mark" src="/assets/logo.svg" alt="بداية الطريق العقارية" />
-        <p class="eyebrow">شركة بداية الطريق العقارية · Bidayat Al-Tariq Real Estate</p>
-        <h1>حاسبة الاستثمار العقاري</h1>
-        <p class="lead">احسب جدوى مشروعك العقاري بدقة واحترافية</p>
+        <p class="eyebrow">شركة بداية الطريق العقارية · Start Road Real Estate Company</p>
+        <h1>احسب استثمارك العقاري بدقة</h1>
+        <p class="lead">منصة احترافية لتحليل تكلفة التطوير، الإيرادات، التمويل، التدفقات النقدية، وإصدار تقرير استثماري جاهز للعرض.</p>
         <div class="intro-card">
-          <strong>تحليل شامل</strong>
-          <span>تكاليف الأرض والتطوير، الإيرادات، المصاريف، التمويل، مؤشرات العائد، الرسوم، وتقرير PDF.</span>
+          <strong>تحليل استثماري شامل</strong>
+          <span>مدخلات منظمة، مؤشرات مالية واضحة، رسوم بيانية، وتقرير PDF بمظهر مناسب للمستثمرين.</span>
         </div>
         <div class="mode-grid">
           <button class="mode-card" data-mode="purchase" type="button">
+            <b class="mode-icon">🏢</b>
             <strong>شراء عقار</strong>
             <span>شراء أرض أو أصل عقاري ثم تطويره أو تشغيله.</span>
           </button>
           <button class="mode-card" data-mode="leaseInvestment" type="button">
+            <b class="mode-icon">📈</b>
             <strong>استثمار</strong>
-            <span>استئجار أرض والبناء عليها ثم حساب الجدوى بدون احتساب بيع الأرض.</span>
+            <span>استئجار أرض وتطويرها وحساب الجدوى التشغيلية دون احتساب قيمة شراء الأرض.</span>
           </button>
         </div>
         <button class="secondary-btn" data-load-project type="button">استرجاع آخر مشروع محفوظ</button>
@@ -53,6 +55,13 @@
               <p>سيتم تكييف مسميات الإيرادات حسب نوع الأصل.</p>
             </div>
             <div class="property-grid" id="propertyGrid"></div>
+            <div class="deal-choice" id="dealChoice">
+              <h4>اختر نموذج العائد</h4>
+              <div class="segmented-cards">
+                <button class="segment-card is-selected" type="button" data-transaction="rent">تأجير</button>
+                <button class="segment-card" type="button" data-transaction="sale">بيع</button>
+              </div>
+            </div>
           </article>
 
           <article class="step is-hidden" data-step="1">
@@ -65,9 +74,10 @@
               <label class="purchase-only">سعر المتر<input name="landPricePerMeter" type="number" min="0" inputmode="decimal" /></label>
               <label class="lease-only is-hidden">إيجار الأرض السنوي<input name="annualLandRent" type="number" min="0" inputmode="decimal" /></label>
               <div class="readonly purchase-only"><span>إجمالي قيمة الأرض</span><strong data-out="landValue">0 ر.س</strong></div>
-              <label>طريقة رسوم السعي أو الوساطة<select name="brokerageMode"><option value="amount">مبلغ ثابت</option><option value="percentage">نسبة من قيمة العقار</option></select></label>
-              <label>رسوم السعي أو الوساطة<input name="brokerageFees" type="number" min="0" inputmode="decimal" /></label>
-              <label class="purchase-only">ضريبة التصرفات العقارية<input name="realEstateTransactionTax" type="number" min="0" inputmode="decimal" /></label>
+              <label>طريقة رسوم السعي أو الوساطة<select name="brokerageMode"><option value="amount">قيمة</option><option value="percentage">نسبة من قيمة العقار</option></select></label>
+              <label>رسوم السعي أو الوساطة<div class="input-with-unit"><input name="brokerageFees" type="number" min="0" inputmode="decimal" /><span data-unit="brokerage">SAR</span></div><small>عادة 2.5% من قيمة الأرض أو العقار</small></label>
+              <label class="purchase-only">طريقة ضريبة التصرفات العقارية<select name="transactionTaxMode"><option value="amount">قيمة</option><option value="percentage">نسبة من قيمة العقار</option></select></label>
+              <label class="purchase-only">ضريبة التصرفات العقارية<div class="input-with-unit"><input name="realEstateTransactionTax" type="number" min="0" inputmode="decimal" /><span data-unit="tax">SAR</span></div><small>عادة 5% من قيمة الأرض أو العقار</small></label>
               <label>رسوم أخرى<input name="otherLandFees" type="number" min="0" inputmode="decimal" /></label>
               <div class="readonly dark"><span data-label="totalLandCost">إجمالي تكلفة تملك الأرض</span><strong data-out="totalLandCost">0 ر.س</strong></div>
             </div>
@@ -80,15 +90,17 @@
             </div>
             <div class="card form-grid">
               <label>طريقة مسطح البناء<select name="builtAreaMode"><option value="manual">إدخال يدوي</option><option value="auto">حساب تلقائي</option></select></label>
-              <label>مسطح البناء الإجمالي<input name="builtUpArea" type="number" min="0" inputmode="decimal" /></label>
+              <label>مسطح البناء الإجمالي<input name="builtUpArea" type="number" min="0" inputmode="decimal" /><small>يحسب من مساحة الأرض عند اختيار الحساب التلقائي</small></label>
               <label>تكلفة البناء للمتر<input name="constructionCostPerMeter" type="number" min="0" inputmode="decimal" /></label>
               <label>نسبة البناء للأرض %<input name="constructionLandRatio" type="number" min="0" inputmode="decimal" /></label>
               <label>عدد الأدوار<input name="floorsCount" type="number" min="0" step="0.5" inputmode="decimal" value="1" /></label>
               <div class="readonly"><span>نسبة المسطح إلى الأرض</span><strong data-out="builtRatio">0٪</strong></div>
               <div class="readonly"><span>المسطح المحسوب</span><strong data-out="calculatedBuiltArea">0 م²</strong></div>
+              <div class="readonly"><span>مساحة الخدمات 7%</span><strong data-out="serviceArea">0 م²</strong></div>
+              <div class="readonly"><span>صافي المساحة التأجيرية / البيعية</span><strong data-out="netSellableArea">0 م²</strong></div>
               <div class="readonly"><span>إجمالي تكلفة البناء</span><strong data-out="baseConstructionCost">0 ر.س</strong></div>
               <label class="toggle-row">إضافة تفاصيل التكاليف<input name="showAdditionalCosts" type="checkbox" /></label>
-              <label class="additional-summary">إجمالي التكاليف الإضافية<input name="totalAdditionalCosts" type="number" min="0" inputmode="decimal" /></label>
+              <label class="additional-summary">إجمالي التكاليف الإضافية<input name="totalAdditionalCosts" type="number" min="0" inputmode="decimal" placeholder="افتراضياً 15% إلى 20% بدون المصاعد" /></label>
               <div class="additional-details is-hidden">
                 <label>تكلفة التصميم والاستشارات<input name="designConsultingCost" type="number" min="0" inputmode="decimal" /></label>
                 <label>تكلفة التراخيص<input name="permitCost" type="number" min="0" inputmode="decimal" /></label>
@@ -112,12 +124,14 @@
             </div>
             <div class="card form-grid">
               <label><span data-label="unitsCount">عدد الوحدات</span><input name="unitsCount" type="number" min="0" inputmode="decimal" /></label>
-              <label><span data-label="averageMonthlyRent">متوسط الإيجار الشهري للوحدة</span><input name="averageMonthlyRent" type="number" min="0" inputmode="decimal" /></label>
+              <label>طريقة تقدير الإيرادات<select name="revenueInputMode"><option value="manual">يدوي</option><option value="auto">اقتراح تلقائي</option></select></label>
+              <label><span data-label="averageMonthlyRent">متوسط إيجار الشقة السنوي</span><input name="averageMonthlyRent" type="number" min="0" inputmode="decimal" /></label>
               <label>نسبة الإشغال المتوقعة %<input name="occupancyRate" type="number" min="0" max="100" inputmode="decimal" value="90" /></label>
               <label class="hotel-only is-hidden">عدد أيام التشغيل<input name="operatingDays" type="number" min="0" inputmode="decimal" value="365" /></label>
               <label><span data-label="additionalIncome">دخل إضافي</span><input name="additionalIncome" type="number" min="0" inputmode="decimal" /></label>
               <div class="readonly"><span>إجمالي الدخل الشهري</span><strong data-out="monthlyIncome">0 ر.س</strong></div>
               <div class="readonly dark"><span>إجمالي الدخل السنوي</span><strong data-out="annualRevenue">0 ر.س</strong></div>
+              <div class="readonly"><span>متوسط مساحة الوحدة المقترحة</span><strong data-out="suggestedUnitArea">0 م²</strong></div>
             </div>
           </article>
 
@@ -127,7 +141,8 @@
               <p>مصاريف سنوية ثابتة ونسبة متغيرة من الإيراد.</p>
             </div>
             <div class="card form-grid">
-              <label>طريقة الصيانة السنوية<select name="maintenanceMode"><option value="amount">مبلغ ثابت</option><option value="percentage">نسبة من الإيراد السنوي</option></select></label>
+              <label>وضع المصاريف<select name="operatingMode"><option value="default">افتراضي</option><option value="manual">يدوي</option></select></label>
+              <label>طريقة الصيانة السنوية<select name="maintenanceMode"><option value="amount">قيمة</option><option value="percentage">نسبة من الدخل</option></select></label>
               <label>الصيانة السنوية<input name="annualMaintenance" type="number" min="0" inputmode="decimal" /></label>
               <label class="toggle-row">إضافة تفاصيل المصاريف التشغيلية<input name="showOperatingDetails" type="checkbox" /></label>
               <label class="operating-summary">إجمالي المصاريف التشغيلية<input name="totalOperatingExpenses" type="number" min="0" inputmode="decimal" /></label>
@@ -152,16 +167,18 @@
             <div class="card form-grid">
               <label class="toggle-row">هل يوجد تمويل بنكي؟<input name="hasFinancing" type="checkbox" /></label>
               <div class="finance-fields is-hidden">
-                <label>طريقة إدخال التمويل<select name="financingMode"><option value="amount">إدخال مبلغ التمويل</option><option value="ratio">إدخال نسبة من تكلفة المشروع</option></select></label>
-                <label>مبلغ التمويل<input name="financingAmount" type="number" min="0" inputmode="decimal" /></label>
-                <label>نسبة التمويل من إجمالي تكلفة المشروع %<input name="financingRatio" type="number" min="0" max="100" inputmode="decimal" /></label>
+                <label>طريقة إدخال التمويل<select name="financingMode"><option value="amount">مبلغ التمويل</option><option value="ratio">نسبة من إجمالي التكلفة</option></select></label>
+                <label>مبلغ التمويل<div class="input-with-unit"><input name="financingAmount" type="number" min="0" inputmode="decimal" /><span data-unit="financing">SAR</span></div></label>
+                <label>نسبة التمويل من إجمالي تكلفة المشروع %<div class="input-with-unit"><input name="financingRatio" type="number" min="0" max="100" inputmode="decimal" /><span>%</span></div></label>
                 <label>مدة التمويل بالسنوات<input name="termYears" type="number" min="0" inputmode="decimal" value="15" /></label>
                 <label>نسبة الفائدة أو الربح السنوي %<input name="annualInterestRate" type="number" min="0" inputmode="decimal" value="5" /></label>
-                <label>نوع السداد<select name="repaymentType"><option value="monthlyFixed">قسط ثابت شهري</option><option value="annual">قسط سنوي</option></select></label>
-                <div class="readonly"><span>القسط الشهري</span><strong data-out="monthlyDebtService">0 ر.س</strong></div>
+                <label>فترة سماحية<select name="gracePeriod"><option value="0">بدون</option><option value="0.5">6 أشهر</option><option value="1">سنة</option></select></label>
+                <label>نوع السداد<select name="repaymentType"><option value="monthlyFixed">قسط سنوي محسوب من قسط شهري ثابت</option><option value="annual">قسط سنوي</option></select></label>
+                <div class="readonly"><span>القسط السنوي</span><strong data-out="annualDebtService">0 ر.س</strong></div>
                 <div class="readonly"><span>إجمالي تكلفة التمويل</span><strong data-out="totalFinancingCost">0 ر.س</strong></div>
-                <div class="readonly dark"><span>صافي التدفق بعد خدمة الدين</span><strong data-out="netIncomeAfterFinancing">0 ر.س</strong></div>
+                <div class="readonly dark"><span>صافي الدخل بعد خدمة الدين</span><strong data-out="netIncomeAfterFinancing">0 ر.س</strong></div>
                 <div class="readonly"><span>DSCR</span><strong data-out="dscr">لا يوجد</strong></div>
+                <small>قدرة المشروع على تغطية التزامات التمويل (Debt Service Coverage Ratio)</small>
               </div>
               <p class="muted finance-empty">بدون تمويل سيتم تجاهل خدمة الدين في حسابات العائد.</p>
             </div>
@@ -175,6 +192,7 @@
             <div class="rating-card">
               <span>تقييم الاستثمار</span>
               <strong data-out="rating">ضعيف</strong>
+              <small data-out="ratingMeta">ROI 0% · الاسترداد 0 سنة</small>
             </div>
             <div class="kpi-grid" id="kpiGrid"></div>
             <div class="charts-grid">

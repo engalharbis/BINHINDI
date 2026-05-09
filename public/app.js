@@ -3,8 +3,8 @@ const propertyTypes = [
   ["residentialVillas", "سكني - فلل", "فل", "عدد الفلل", "متوسط إيجار الفيلا الشهري", "دخل إضافي"],
   ["commercialMall", "تجاري - مجمع تجاري", "مج", "عدد المحلات", "متوسط إيجار المحل الشهري", "دخل اللوحات أو المواقف"],
   ["commercialShowrooms", "تجاري - معارض", "مع", "عدد المعارض", "متوسط إيجار المعرض الشهري", "دخل إضافي"],
-  ["industrialWorkshops", "صناعي - ورش", "ور", "عدد الورش", "متوسط إيجار الورشة الشهري", "دخل إضافي"],
   ["industrialWarehouses", "صناعي - مستودعات", "مس", "عدد المستودعات", "متوسط إيجار المستودع الشهري", "دخل خدمات أو ساحات إضافية"],
+  ["industrialWorkshops", "صناعي - ورش", "ور", "عدد الورش", "متوسط إيجار الورشة الشهري", "دخل إضافي"],
   ["hospitalityServicedApartments", "فندقي - شقق مخدومة", "فن", "عدد الغرف", "متوسط سعر الليلة ADR", "إيرادات إضافية"],
   ["rawLandDevelopment", "أرض خام / تطوير أرض", "أر", "عدد القطع أو الوحدات", "متوسط العائد الشهري للوحدة", "دخل إضافي"]
 ];
@@ -22,7 +22,8 @@ const steps = [
 const state = {
   step: 0,
   propertyType: "residentialBuilding",
-  mode: "purchase"
+  mode: "purchase",
+  transactionType: "rent"
 };
 
 const storageKey = "realEstateInvestmentCalculator:lastProject";
@@ -72,9 +73,10 @@ function calculate() {
   const brokerageFees = rawValue("brokerageMode") === "percentage"
     ? (state.mode === "leaseInvestment" ? annualLandRent : landValue) * percent(value("brokerageFees"))
     : value("brokerageFees");
+  const transactionTax = rawValue("transactionTaxMode") === "percentage" ? landValue * percent(value("realEstateTransactionTax")) : value("realEstateTransactionTax");
   const totalLandCost = state.mode === "leaseInvestment"
     ? brokerageFees + value("otherLandFees")
-    : landValue + brokerageFees + value("realEstateTransactionTax") + value("otherLandFees");
+    : landValue + brokerageFees + transactionTax + value("otherLandFees");
   const baseConstructionCost = value("builtUpArea") * value("constructionCostPerMeter");
   const additionalCosts = value("showAdditionalCosts")
     ? value("designConsultingCost")
@@ -86,7 +88,7 @@ function calculate() {
       + value("civilDefenseCost")
       + value("elevatorsCost")
       + value("finishingCost")
-    : value("totalAdditionalCosts");
+    : (value("totalAdditionalCosts") || baseConstructionCost * 0.175);
   const directDevelopmentCosts = baseConstructionCost + additionalCosts;
   const contingencyAmount = directDevelopmentCosts * percent(value("contingencyPercentage"));
   const totalDevelopmentCost = directDevelopmentCosts + contingencyAmount;
@@ -95,18 +97,24 @@ function calculate() {
   const occupancy = percent(value("occupancyRate"));
   let annualRevenue = 0;
   let monthlyIncome = 0;
-  if (state.propertyType === "hospitalityServicedApartments") {
+  if (state.transactionType === "sale") {
+    annualRevenue = netArea() * value("averageMonthlyRent") + value("additionalIncome");
+    monthlyIncome = annualRevenue / 12;
+  } else if (state.propertyType === "hospitalityServicedApartments") {
     annualRevenue = (value("unitsCount") * value("averageMonthlyRent") * value("operatingDays") * occupancy) + value("additionalIncome");
     monthlyIncome = annualRevenue / 12;
   } else {
-    monthlyIncome = (value("unitsCount") * value("averageMonthlyRent") * occupancy) + value("additionalIncome");
-    annualRevenue = monthlyIncome * 12;
+    annualRevenue = (value("unitsCount") * value("averageMonthlyRent") * occupancy) + value("additionalIncome");
+    monthlyIncome = annualRevenue / 12;
   }
 
   const annualMaintenance = rawValue("maintenanceMode") === "percentage"
     ? annualRevenue * percent(value("annualMaintenance"))
     : value("annualMaintenance");
-  const operatingDetails = value("showOperatingDetails")
+  const defaultOperating = annualRevenue * defaultOperatingRate();
+  const operatingDetails = rawValue("operatingMode") === "default"
+    ? defaultOperating
+    : value("showOperatingDetails")
     ? value("security")
       + value("cleaning")
       + value("ownerUtilities")
@@ -146,6 +154,7 @@ function calculate() {
     landValue,
     annualLandRent,
     brokerageFees,
+    transactionTax,
     annualMaintenance,
     additionalCosts,
     totalLandCost,
@@ -204,6 +213,13 @@ function debtService(totalProjectCost) {
   };
 }
 
+function defaultOperatingRate() {
+  if (state.propertyType === "hospitalityServicedApartments") return 0.05;
+  if (state.propertyType === "commercialMall" || state.propertyType === "commercialShowrooms") return 0.025;
+  if (state.propertyType === "industrialWarehouses" || state.propertyType === "industrialWorkshops") return 0.02;
+  return 0.02;
+}
+
 function calculateIRR(flows) {
   let rate = 0.1;
   for (let iteration = 0; iteration < 80; iteration += 1) {
@@ -239,16 +255,18 @@ function renderPropertyTypes() {
 function updatePropertyLabels() {
   const selected = propertyTypes.find(([id]) => id === state.propertyType);
   document.querySelector('[data-label="unitsCount"]').textContent = selected[3];
-  document.querySelector('[data-label="averageMonthlyRent"]').textContent = selected[4];
+  document.querySelector('[data-label="averageMonthlyRent"]').textContent = state.transactionType === "sale" ? "سعر البيع للمتر / الوحدة" : selected[4].replace("الشهري", "السنوي");
   document.querySelector('[data-label="additionalIncome"]').textContent = selected[5];
   document.querySelector('[data-label="totalLandCost"]').textContent = state.mode === "leaseInvestment" ? "تكاليف تأسيس الأرض المستأجرة" : "إجمالي تكلفة تملك الأرض";
   $(".hotel-only").classList.toggle("is-hidden", state.propertyType !== "hospitalityServicedApartments");
+  $$(".segment-card").forEach((button) => button.classList.toggle("is-selected", button.dataset.transaction === state.transactionType));
+  document.querySelector('[data-transaction="sale"]')?.classList.toggle("is-hidden", state.mode === "leaseInvestment");
 }
 
 function syncOutputs() {
   syncVisibility();
   const r = calculate();
-  const moneyKeys = ["landValue", "totalLandCost", "baseConstructionCost", "totalDevelopmentCost", "monthlyIncome", "annualRevenue", "noi", "monthlyDebtService", "totalFinancingCost", "netIncomeAfterFinancing"];
+  const moneyKeys = ["landValue", "totalLandCost", "baseConstructionCost", "totalDevelopmentCost", "monthlyIncome", "annualRevenue", "noi", "monthlyDebtService", "annualDebtService", "totalFinancingCost", "netIncomeAfterFinancing"];
   moneyKeys.forEach((key) => {
     const node = document.querySelector(`[data-out="${key}"]`);
     if (node) node.textContent = currency.format(r[key]);
@@ -256,11 +274,22 @@ function syncOutputs() {
   const dscr = document.querySelector('[data-out="dscr"]');
   if (dscr) dscr.textContent = r.dscr ? number.format(r.dscr) : "لا يوجد";
   const rating = document.querySelector('[data-out="rating"]');
-  if (rating) rating.textContent = r.rating;
+  if (rating) {
+    rating.textContent = r.rating;
+    rating.parentElement.dataset.rating = r.rating;
+  }
+  const ratingMeta = document.querySelector('[data-out="ratingMeta"]');
+  if (ratingMeta) ratingMeta.textContent = `ROI ${number.format(r.roi)}% · الاسترداد ${number.format(r.paybackPeriod)} سنة`;
   const builtRatio = document.querySelector('[data-out="builtRatio"]');
   if (builtRatio) builtRatio.textContent = value("landArea") > 0 ? `${number.format((value("builtUpArea") / value("landArea")) * 100)}٪` : "0٪";
   const calculatedBuiltArea = document.querySelector('[data-out="calculatedBuiltArea"]');
   if (calculatedBuiltArea) calculatedBuiltArea.textContent = `${number.format(calculatedArea())} م²`;
+  document.querySelector('[data-out="serviceArea"]').textContent = `${number.format(serviceArea())} م²`;
+  document.querySelector('[data-out="netSellableArea"]').textContent = `${number.format(netArea())} م²`;
+  document.querySelector('[name="builtUpArea"]').readOnly = rawValue("builtAreaMode") === "auto";
+  document.querySelector('[data-unit="brokerage"]').textContent = rawValue("brokerageMode") === "percentage" ? "%" : "SAR";
+  document.querySelector('[data-unit="tax"]').textContent = rawValue("transactionTaxMode") === "percentage" ? "%" : "SAR";
+  document.querySelector('[data-unit="financing"]').textContent = rawValue("financingMode") === "ratio" ? "%" : "SAR";
   if (value("hasFinancing")) {
     if (rawValue("financingMode") === "ratio") document.querySelector('[name="financingAmount"]').value = Math.round(r.financingAmount || 0);
     else document.querySelector('[name="financingRatio"]').value = (r.financingRatio || 0).toFixed(2);
@@ -285,27 +314,32 @@ function calculatedArea() {
   return value("landArea") * percent(value("constructionLandRatio")) * (value("floorsCount") || 1);
 }
 
+function serviceArea() {
+  return value("builtUpArea") * 0.07;
+}
+
+function netArea() {
+  return Math.max(value("builtUpArea") - serviceArea(), 0);
+}
+
 function renderKpis(r) {
   const grid = $("#kpiGrid");
   if (!grid) return;
   const items = [
-    ["إجمالي تكلفة الأرض", currency.format(r.totalLandCost)],
-    ["إجمالي تكلفة البناء والتطوير", currency.format(r.totalDevelopmentCost)],
-    ["إجمالي تكلفة المشروع", currency.format(r.totalProjectCost)],
-    ["إجمالي الإيراد السنوي", currency.format(r.annualRevenue)],
-    ["إجمالي المصاريف التشغيلية", currency.format(r.operatingExpenses)],
-    ["صافي الدخل التشغيلي NOI", currency.format(r.noi)],
-    ["صافي الدخل بعد التمويل", currency.format(r.netIncomeAfterFinancing)],
-    ["Yield on Cost", `${number.format(r.yieldOnCost)}٪`],
-    ["ROI", `${number.format(r.roi)}٪`],
-    ["IRR", `${number.format(r.irr)}٪`],
-    ["NPV", currency.format(r.npv)],
-    ["Payback Period", `${number.format(r.paybackPeriod)} سنة`],
-    ["القسط الشهري", currency.format(r.monthlyDebtService)],
-    ["DSCR", r.dscr ? number.format(r.dscr) : "لا يوجد"],
-    ["نقطة التعادل التقريبية", `${number.format(r.breakEvenOccupancy)}٪`]
+    ["إجمالي تكلفة المشروع", "Total Project Cost", currency.format(r.totalProjectCost), "التكلفة الكلية للمشروع"],
+    ["الإيرادات", "Revenue", currency.format(r.annualRevenue), "إجمالي الدخل المتوقع"],
+    ["NOI", "Net Operating Income", currency.format(r.noi), "صافي الدخل التشغيلي"],
+    ["صافي الربح", "Net Profit", currency.format(r.netIncomeAfterFinancing), "بعد المصاريف والتمويل"],
+    ["Yield on Cost", "Return compared to total project cost", `${number.format(r.yieldOnCost)}%`, "العائد السنوي مقارنة بإجمالي تكلفة المشروع"],
+    ["ROI", "Return on Investment", `${number.format(r.roi)}%`, "نسبة العائد على الاستثمار"],
+    ["IRR", "Internal Rate of Return", `${number.format(r.irr)}%`, "معدل العائد الداخلي المتوقع للمشروع"],
+    ["NPV", "Net Present Value", currency.format(r.npv), "صافي القيمة الحالية للتدفقات النقدية المستقبلية"],
+    ["Payback Period", "Payback Period", `${number.format(r.paybackPeriod)} سنة`, "عدد السنوات المتوقعة لاسترداد رأس المال"],
+    ["القسط السنوي", "Annual Debt Service", currency.format(r.annualDebtService), "خدمة الدين السنوية"],
+    ["DSCR", "Debt Service Coverage Ratio", r.dscr ? number.format(r.dscr) : "لا يوجد", "قدرة المشروع على تغطية التزامات التمويل"],
+    ["نقطة التعادل", "Break-even", `${number.format(r.breakEvenOccupancy)}%`, "نسبة إشغال تقريبية للتعادل"]
   ];
-  grid.innerHTML = items.map(([label, val]) => `<div class="kpi-card"><span>${label}</span><strong>${val}</strong></div>`).join("");
+  grid.innerHTML = items.map(([label, en, val, hint]) => `<div class="kpi-card"><span>${label}<small>(${en})</small></span><strong>${val}</strong><em>${hint}</em></div>`).join("");
 }
 
 function renderCashflowTable(r) {
@@ -314,15 +348,17 @@ function renderCashflowTable(r) {
   const flows = displayCashFlows(r);
   const paybackYear = displayPaybackYear(r, flows);
   const totals = cashflowTotals(flows);
+  const incomeLabel = state.transactionType === "sale" ? "البيع" : "الدخل";
+  const showLandRent = state.mode === "leaseInvestment";
   table.innerHTML = `
     <thead>
       <tr>
         <th>السنة</th>
-        <th>الإيرادات</th>
-        <th>إيجار الأرض</th>
+        <th>${incomeLabel}</th>
+        ${showLandRent ? "<th>إيجار الأرض</th>" : ""}
         <th>المصاريف</th>
         <th>التمويل</th>
-        <th>صافي التدفق</th>
+        <th>صافي الدخل</th>
         <th>التراكمي</th>
       </tr>
     </thead>
@@ -331,7 +367,7 @@ function renderCashflowTable(r) {
         <tr class="${paybackYear === flow.year ? "is-payback" : ""}">
           <td><strong>${flow.year}${paybackYear === flow.year ? " ✔" : ""}</strong></td>
           <td>${currency.format(flow.revenue)}</td>
-          <td>${currency.format(flow.landRent)}</td>
+          ${showLandRent ? `<td>${currency.format(flow.landRent)}</td>` : ""}
           <td>${currency.format(flow.expenses)}</td>
           <td>${currency.format(flow.financing)}</td>
           <td>${currency.format(flow.netAfterDebt)}</td>
@@ -343,7 +379,7 @@ function renderCashflowTable(r) {
       <tr>
         <td>الإجمالي</td>
         <td>${currency.format(totals.revenue)}</td>
-        <td>${currency.format(totals.landRent)}</td>
+        ${showLandRent ? `<td>${currency.format(totals.landRent)}</td>` : ""}
         <td>${currency.format(totals.expenses)}</td>
         <td>${currency.format(totals.financing)}</td>
         <td>${currency.format(totals.netAfterDebt)}</td>
@@ -364,14 +400,16 @@ function displayCashFlows(r) {
   const years = getProjectYears();
   const annualDebtService = r.annualDebtService || 0;
   const annualLandRent = r.annualLandRent || 0;
+  const graceYears = value("gracePeriod");
   return Array.from({ length: years }, (_, index) => {
     const year = index + 1;
+    const financing = year <= graceYears ? 0 : annualDebtService;
     const revenue = r.annualRevenue * Math.pow(1.025, index);
     const expenses = r.operatingExpenses * Math.pow(1.018, index);
     const landRent = annualLandRent * Math.pow(1.018, index);
     const noi = revenue - expenses - landRent;
-    const netAfterDebt = noi - annualDebtService;
-    return { year, revenue, landRent, expenses, financing: annualDebtService, noi, netAfterDebt, cumulative: 0 };
+    const netAfterDebt = noi - financing;
+    return { year, revenue, landRent, expenses, financing, noi, netAfterDebt, cumulative: 0 };
   }).reduce((flows, flow) => {
     const previous = flows.length ? flows[flows.length - 1].cumulative : -recoveryBase(r);
     flows.push({ ...flow, cumulative: previous + flow.netAfterDebt });
@@ -518,8 +556,8 @@ function drawLine(canvas, flows) {
 
 function compactMoney(value) {
   const abs = Math.abs(value);
-  if (abs >= 1000000) return `${number.format(value / 1000000)}م`;
-  if (abs >= 1000) return `${number.format(value / 1000)}ألف`;
+  if (abs >= 1000000) return `SAR ${number.format(value / 1000000)}M`;
+  if (abs >= 1000) return `SAR ${number.format(value / 1000)}K`;
   return number.format(value);
 }
 
@@ -545,7 +583,7 @@ function renderCharts(r) {
   const costItems = [
     { label: "الأرض", value: state.mode === "purchase" ? r.landValue : 0 },
     { label: "البناء", value: r.baseConstructionCost },
-    { label: "الرسوم", value: r.brokerageFees + (state.mode === "purchase" ? value("realEstateTransactionTax") : 0) + value("otherLandFees") },
+    { label: "الرسوم", value: r.brokerageFees + (state.mode === "purchase" ? r.transactionTax : 0) + value("otherLandFees") },
     { label: "التكاليف الأخرى", value: r.additionalCosts + r.contingencyAmount }
   ].filter((item) => item.value > 0);
   drawPieEnhanced($("#pieChart"), costItems);
@@ -625,6 +663,18 @@ function drawLineEnhanced(canvas, flows) {
   const height = bottom - top;
   ctx.strokeStyle = "rgba(17,17,15,0.14)";
   ctx.lineWidth = 1;
+  ctx.fillStyle = "#68645c";
+  ctx.font = "12px Tahoma";
+  ctx.textAlign = "right";
+  [0, 0.25, 0.5, 0.75, 1].forEach((tick) => {
+    const y = bottom - tick * height;
+    ctx.strokeStyle = "rgba(17,17,15,0.07)";
+    ctx.beginPath();
+    ctx.moveTo(left, y);
+    ctx.lineTo(right, y);
+    ctx.stroke();
+    ctx.fillText(compactAxis(max * tick), left - 8, y + 4);
+  });
   ctx.beginPath();
   ctx.moveTo(left, top);
   ctx.lineTo(left, bottom);
@@ -660,11 +710,37 @@ function drawLineEnhanced(canvas, flows) {
       ctx.strokeStyle = item.color;
       ctx.lineWidth = 2;
       ctx.stroke();
+      if (flows.length <= 15) {
+        ctx.fillStyle = item.color;
+        ctx.font = "bold 10px Tahoma";
+        ctx.textAlign = "center";
+        ctx.fillText(compactMoney(flow[item.key]), x, Math.max(y - 10, 12));
+      }
       chartMeta.line.push({ x, y, value: flow[item.key], year: flow.year, label: item.label, color: item.color });
     });
   });
+  ctx.fillStyle = "#68645c";
+  ctx.font = "11px Tahoma";
+  ctx.textAlign = "center";
+  flows.forEach((flow, index) => {
+    if (index % Math.ceil(flows.length / 6) === 0 || index === flows.length - 1) {
+      const x = left + index * ((right - left) / Math.max(flows.length - 1, 1));
+      ctx.fillText(yearLabel(flow.year), x, bottom + 22);
+    }
+  });
   renderLineLegend(series);
   attachLineTooltip(canvas);
+}
+
+function yearLabel(year) {
+  const labels = ["الأولى", "الثانية", "الثالثة", "الرابعة", "الخامسة", "السادسة", "السابعة", "الثامنة", "التاسعة", "العاشرة"];
+  return year <= labels.length ? `السنة ${labels[year - 1]}` : `السنة ${year}`;
+}
+
+function compactAxis(value) {
+  if (value >= 1000000) return `SAR ${number.format(value / 1000000)}M`;
+  if (value >= 1000) return `SAR ${number.format(value / 1000)}K`;
+  return `SAR ${number.format(value)}`;
 }
 
 function renderLineLegend(series) {
@@ -673,7 +749,7 @@ function renderLineLegend(series) {
   legend.innerHTML = series.map((item) => `
     <div class="legend-row">
       <span><i style="background:${item.color}"></i> ${item.label}</span>
-      <strong>خط سنوي</strong>
+      <strong>${item.label === "الإيرادات" ? "الإيرادات السنوية" : item.label === "المصاريف" ? "المصاريف التشغيلية" : "التمويل البنكي"}</strong>
     </div>
   `).join("");
 }
@@ -746,12 +822,14 @@ function buildReport() {
   const reportTotals = cashflowTotals(reportFlows);
   const reportPaybackYear = displayPaybackYear(r, reportFlows);
   const reportPieLegend = chartMeta.pie.map((item) => `<div>${item.label}: ${currency.format(item.value)} · ${number.format((item.value / item.total) * 100)}%</div>`).join("");
+  const reportShowLandRent = state.mode === "leaseInvestment";
+  const reportIncomeLabel = state.transactionType === "sale" ? "البيع" : "الدخل";
   const row = (label, val) => `<tr><td>${label}</td><td>${val}</td></tr>`;
   const table = (title, rows) => `<section class="report-section"><h2>${title}</h2><table>${rows.join("")}</table></section>`;
   $("#printReport").innerHTML = `
     <article class="report-page report-cover">
       <div class="report-brand">
-        <div class="report-brand-title">شركة بداية الطريق العقارية<br>Bidayat Al-Tariq Real Estate</div>
+        <div class="report-brand-title">شركة بداية الطريق العقارية<br>Start Road Real Estate Company</div>
         <img class="report-logo" src="/assets/logo.svg" alt="بداية الطريق العقارية">
       </div>
       <h1>تقرير جدوى الاستثمار العقاري</h1>
@@ -791,7 +869,7 @@ function buildReport() {
       ${table("تكاليف الأرض", [
         row("إجمالي قيمة الأرض", state.mode === "purchase" ? currency.format(r.landValue) : "لا تحتسب - أرض مستأجرة"),
         row("رسوم السعي أو الوساطة", currency.format(r.brokerageFees)),
-        row("ضريبة التصرفات العقارية", currency.format(value("realEstateTransactionTax"))),
+        row("ضريبة التصرفات العقارية", currency.format(r.transactionTax)),
         row("رسوم أخرى", currency.format(value("otherLandFees"))),
         row(state.mode === "purchase" ? "إجمالي تكلفة تملك الأرض" : "تكاليف تأسيس مرتبطة بالأرض المستأجرة", currency.format(r.totalLandCost))
       ])}
@@ -825,7 +903,7 @@ function buildReport() {
         row("نسبة التمويل", `${number.format(r.financingRatio)}٪`),
         row("مدة التمويل", `${number.format(value("termYears"))} سنة`),
         row("نسبة الفائدة أو الربح", `${number.format(value("annualInterestRate"))}٪`),
-        row("القسط الشهري", currency.format(r.monthlyDebtService)),
+        row("القسط السنوي", currency.format(r.annualDebtService)),
         row("إجمالي تكلفة التمويل", currency.format(r.totalFinancingCost)),
         row("DSCR", r.dscr ? number.format(r.dscr) : "غير متاح")
       ]) : ""}
@@ -848,12 +926,12 @@ function buildReport() {
       <section class="report-section">
         <h2>التقرير المالي</h2>
         <table>
-          <tr><td>السنة</td><td>الإيرادات</td><td>إيجار الأرض</td><td>المصاريف</td><td>التمويل</td><td>صافي التدفق</td><td>التراكمي</td></tr>
+          <tr><td>السنة</td><td>${reportIncomeLabel}</td>${reportShowLandRent ? "<td>إيجار الأرض</td>" : ""}<td>المصاريف</td><td>التمويل</td><td>صافي الدخل</td><td>التراكمي</td></tr>
           ${reportFlows.map((flow) => `
             <tr>
               <td>${flow.year}${reportPaybackYear === flow.year ? " ✔" : ""}</td>
               <td>${currency.format(flow.revenue)}</td>
-              <td>${currency.format(flow.landRent)}</td>
+              ${reportShowLandRent ? `<td>${currency.format(flow.landRent)}</td>` : ""}
               <td>${currency.format(flow.expenses)}</td>
               <td>${currency.format(flow.financing)}</td>
               <td>${currency.format(flow.netAfterDebt)}</td>
@@ -863,7 +941,7 @@ function buildReport() {
           <tr>
             <td><strong>الإجمالي</strong></td>
             <td><strong>${currency.format(reportTotals.revenue)}</strong></td>
-            <td><strong>${currency.format(reportTotals.landRent)}</strong></td>
+            ${reportShowLandRent ? `<td><strong>${currency.format(reportTotals.landRent)}</strong></td>` : ""}
             <td><strong>${currency.format(reportTotals.expenses)}</strong></td>
             <td><strong>${currency.format(reportTotals.financing)}</strong></td>
             <td><strong>${currency.format(reportTotals.netAfterDebt)}</strong></td>
@@ -938,6 +1016,7 @@ function collectProject() {
   });
   return {
     mode: state.mode,
+    transactionType: state.transactionType,
     propertyType: state.propertyType,
     step: state.step,
     fields,
@@ -966,6 +1045,7 @@ function loadProject() {
   const project = JSON.parse(saved);
   state.mode = project.mode || "purchase";
   state.propertyType = project.propertyType || "residentialBuilding";
+  state.transactionType = project.transactionType || "rent";
   Object.entries(project.fields || {}).forEach(([name, savedValue]) => {
     const field = document.querySelector(`[name="${name}"]`);
     if (!field) return;
@@ -986,6 +1066,7 @@ function resetAll() {
   document.getElementById("calculatorForm").reset();
   state.propertyType = "residentialBuilding";
   state.mode = "purchase";
+  state.transactionType = "rent";
   state.step = 0;
   renderPropertyTypes();
   updatePropertyLabels();
@@ -996,7 +1077,7 @@ document.addEventListener("input", (event) => {
   if (event.target.matches("input, select")) {
     if (event.target.type === "number" && Number(event.target.value) < 0) event.target.value = 0;
     if ((event.target.name === "landArea" || event.target.name === "constructionLandRatio" || event.target.name === "floorsCount" || event.target.name === "builtAreaMode") && rawValue("builtAreaMode") === "auto") {
-      document.querySelector('[name="builtUpArea"]').value = (value("landArea") * value("constructionLandRatio")) / 100;
+      document.querySelector('[name="builtUpArea"]').value = calculatedArea();
     }
     if (event.target.name === "builtUpArea" && value("landArea") > 0 && rawValue("builtAreaMode") === "manual") {
       document.querySelector('[name="constructionLandRatio"]').value = ((value("builtUpArea") / value("landArea")) * 100).toFixed(2);
@@ -1014,10 +1095,18 @@ document.addEventListener("click", (event) => {
     updatePropertyLabels();
     syncOutputs();
   }
+  const transaction = event.target.closest("[data-transaction]");
+  if (transaction) {
+    state.transactionType = transaction.dataset.transaction;
+    updatePropertyLabels();
+    syncOutputs();
+    saveProject();
+  }
   const modeButton = event.target.closest("[data-mode]");
   if (modeButton) {
     state.mode = modeButton.dataset.mode;
     state.propertyType = state.mode === "leaseInvestment" ? "commercialShowrooms" : "residentialBuilding";
+    state.transactionType = state.mode === "leaseInvestment" ? "rent" : state.transactionType;
     renderPropertyTypes();
     updatePropertyLabels();
     $("#splash").classList.add("is-hidden");

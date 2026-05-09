@@ -141,7 +141,8 @@ h3 {
 .intro-card,
 .card,
 .property-card,
-.rating-card {
+.rating-card,
+.mode-card {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.92);
@@ -168,9 +169,6 @@ h3 {
 
 .mode-card {
   min-height: 124px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: white;
   padding: 16px;
   text-align: right;
   display: grid;
@@ -178,6 +176,17 @@ h3 {
   align-content: start;
   cursor: pointer;
   box-shadow: 0 18px 42px rgba(17, 17, 15, 0.08);
+}
+
+.mode-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--black), #363226);
+  color: var(--gold);
+  font-size: 1.25rem;
 }
 
 .mode-card strong {
@@ -300,6 +309,32 @@ h3 {
   box-shadow: inset 0 0 0 1px var(--gold), 0 18px 42px rgba(198, 155, 79, 0.16);
 }
 
+.deal-choice {
+  display: grid;
+  gap: 10px;
+}
+
+.segmented-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.segment-card {
+  min-height: 50px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  color: var(--black);
+  font-weight: 850;
+}
+
+.segment-card.is-selected {
+  background: var(--black);
+  color: var(--gold);
+  border-color: var(--gold);
+}
+
 .property-icon {
   width: 38px;
   height: 38px;
@@ -346,10 +381,43 @@ select {
   outline: 2px solid transparent;
 }
 
+.input-with-unit {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  border-radius: 8px;
+  background: rgba(17, 17, 15, 0.055);
+  overflow: hidden;
+}
+
+.input-with-unit input {
+  background: transparent;
+}
+
+.input-with-unit span {
+  min-width: 48px;
+  padding: 0 12px;
+  color: var(--gold);
+  font-weight: 900;
+  text-align: center;
+}
+
+small {
+  color: var(--muted);
+  line-height: 1.5;
+  font-weight: 650;
+}
+
 input:focus,
 select:focus {
   outline-color: rgba(198, 155, 79, 0.45);
   background: white;
+}
+
+input[readonly] {
+  color: var(--muted);
+  background: rgba(17, 17, 15, 0.08);
+  cursor: not-allowed;
 }
 
 .toggle-row {
@@ -422,6 +490,7 @@ select:focus {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   background: var(--black);
   color: white;
 }
@@ -434,6 +503,26 @@ select:focus {
 .rating-card strong {
   color: var(--gold);
   font-size: 2rem;
+}
+
+.rating-card small {
+  width: 100%;
+  margin-top: 8px;
+  color: rgba(255,255,255,0.72);
+  font-weight: 750;
+}
+
+.rating-card[data-rating="ممتاز"] strong {
+  color: #55c787;
+}
+
+.rating-card[data-rating="متوسط"] strong,
+.rating-card[data-rating="جيد"] strong {
+  color: var(--gold);
+}
+
+.rating-card[data-rating="ضعيف"] strong {
+  color: #ff9b8d;
 }
 
 .kpi-grid {
@@ -460,10 +549,28 @@ select:focus {
   font-weight: 800;
 }
 
+.kpi-card span small {
+  display: block;
+  margin-top: 3px;
+  color: rgba(104, 100, 92, 0.8);
+  font-size: 0.7rem;
+}
+
 .kpi-card strong {
   color: var(--black);
-  font-size: 1rem;
+  font-size: 1.28rem;
   line-height: 1.35;
+}
+
+.kpi-card strong::first-letter {
+  font-size: 0.9em;
+}
+
+.kpi-card em {
+  color: var(--muted);
+  font-style: normal;
+  font-size: 0.72rem;
+  line-height: 1.45;
 }
 
 .charts-grid {
