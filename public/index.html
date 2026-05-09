@@ -89,7 +89,7 @@
               <p>اجمع التكاليف المباشرة وغير المباشرة واحتياطي المخاطر.</p>
             </div>
             <div class="card form-grid">
-              <label>طريقة مسطح البناء<select name="builtAreaMode"><option value="manual">إدخال يدوي</option><option value="auto">حساب تلقائي</option></select></label>
+              <label>طريقة حساب البناء<select name="builtAreaMode"><option value="auto">حساب تلقائي</option><option value="manual">إدخال يدوي</option></select></label>
               <label>مسطح البناء الإجمالي<input name="builtUpArea" type="number" min="0" inputmode="decimal" /><small>يحسب من مساحة الأرض عند اختيار الحساب التلقائي</small></label>
               <label>تكلفة البناء للمتر<input name="constructionCostPerMeter" type="number" min="0" inputmode="decimal" /></label>
               <label>نسبة البناء للأرض %<input name="constructionLandRatio" type="number" min="0" inputmode="decimal" /></label>
@@ -99,8 +99,8 @@
               <div class="readonly"><span>مساحة الخدمات 7%</span><strong data-out="serviceArea">0 م²</strong></div>
               <div class="readonly"><span>صافي المساحة التأجيرية / البيعية</span><strong data-out="netSellableArea">0 م²</strong></div>
               <div class="readonly"><span>إجمالي تكلفة البناء</span><strong data-out="baseConstructionCost">0 ر.س</strong></div>
-              <label class="toggle-row">إضافة تفاصيل التكاليف<input name="showAdditionalCosts" type="checkbox" /></label>
-              <label class="additional-summary">إجمالي التكاليف الإضافية<input name="totalAdditionalCosts" type="number" min="0" inputmode="decimal" placeholder="افتراضياً 15% إلى 20% بدون المصاعد" /></label>
+              <label>طريقة التكاليف الإضافية<select name="additionalCostMode"><option value="auto">تلقائي 17%</option><option value="detailed">تفصيلي</option></select></label>
+              <label class="additional-summary">إجمالي التكاليف الإضافية<input name="totalAdditionalCosts" type="number" min="0" inputmode="decimal" placeholder="يحسب تلقائياً 17%" /><small>تشمل التراخيص الحكومية، الكهرباء، المياه، البنية التحتية، الرسوم والتكاليف غير المباشرة.</small></label>
               <div class="additional-details is-hidden">
                 <label>تكلفة التصميم والاستشارات<input name="designConsultingCost" type="number" min="0" inputmode="decimal" /></label>
                 <label>تكلفة التراخيص<input name="permitCost" type="number" min="0" inputmode="decimal" /></label>
@@ -124,7 +124,6 @@
             </div>
             <div class="card form-grid">
               <label><span data-label="unitsCount">عدد الوحدات</span><input name="unitsCount" type="number" min="0" inputmode="decimal" /></label>
-              <label>طريقة تقدير الإيرادات<select name="revenueInputMode"><option value="manual">يدوي</option><option value="auto">اقتراح تلقائي</option></select></label>
               <label><span data-label="averageMonthlyRent">متوسط إيجار الشقة السنوي</span><input name="averageMonthlyRent" type="number" min="0" inputmode="decimal" /></label>
               <label>نسبة الإشغال المتوقعة %<input name="occupancyRate" type="number" min="0" max="100" inputmode="decimal" value="90" /></label>
               <label class="hotel-only is-hidden">عدد أيام التشغيل<input name="operatingDays" type="number" min="0" inputmode="decimal" value="365" /></label>
@@ -141,7 +140,6 @@
               <p>مصاريف سنوية ثابتة ونسبة متغيرة من الإيراد.</p>
             </div>
             <div class="card form-grid">
-              <label>وضع المصاريف<select name="operatingMode"><option value="default">افتراضي</option><option value="manual">يدوي</option></select></label>
               <label>طريقة الصيانة السنوية<select name="maintenanceMode"><option value="amount">قيمة</option><option value="percentage">نسبة من الدخل</option></select></label>
               <label>الصيانة السنوية<input name="annualMaintenance" type="number" min="0" inputmode="decimal" /></label>
               <label class="toggle-row">إضافة تفاصيل المصاريف التشغيلية<input name="showOperatingDetails" type="checkbox" /></label>
@@ -172,8 +170,8 @@
                 <label>نسبة التمويل من إجمالي تكلفة المشروع %<div class="input-with-unit"><input name="financingRatio" type="number" min="0" max="100" inputmode="decimal" /><span>%</span></div></label>
                 <label>مدة التمويل بالسنوات<input name="termYears" type="number" min="0" inputmode="decimal" value="15" /></label>
                 <label>نسبة الفائدة أو الربح السنوي %<input name="annualInterestRate" type="number" min="0" inputmode="decimal" value="5" /></label>
-                <label>فترة سماحية<select name="gracePeriod"><option value="0">بدون</option><option value="0.5">6 أشهر</option><option value="1">سنة</option></select></label>
-                <label>نوع السداد<select name="repaymentType"><option value="monthlyFixed">قسط سنوي محسوب من قسط شهري ثابت</option><option value="annual">قسط سنوي</option></select></label>
+                <label>فترة سماحية<select name="gracePeriod"><option value="0">بدون</option><option value="0.5">6 أشهر</option><option value="1">سنة</option><option value="2">سنتين</option><option value="3">3 سنوات</option><option value="4">4 سنوات</option><option value="5">5 سنوات</option></select><small>خلال فترة السماحية لا يتم احتساب أقساط السداد ضمن التدفقات النقدية.</small></label>
+                <label>نوع السداد<select name="repaymentType"><option value="annual">قسط سنوي</option><option value="semiannual">قسط نصف سنوي</option><option value="quarterly">قسط ربع سنوي</option></select><small>يؤثر نوع السداد على توزيع الأقساط خلال السنة.</small></label>
                 <div class="readonly"><span>القسط السنوي</span><strong data-out="annualDebtService">0 ر.س</strong></div>
                 <div class="readonly"><span>إجمالي تكلفة التمويل</span><strong data-out="totalFinancingCost">0 ر.س</strong></div>
                 <div class="readonly dark"><span>صافي الدخل بعد خدمة الدين</span><strong data-out="netIncomeAfterFinancing">0 ر.س</strong></div>
@@ -202,6 +200,7 @@
             </div>
             <div class="card cashflow-card">
               <h4>التقرير المالي</h4>
+              <p class="table-currency-note">العملة: ريال سعودي <span>(Currency: SAR)</span></p>
               <div class="table-scroll">
                 <table class="cashflow-table" id="cashflowTable"></table>
               </div>
