@@ -349,6 +349,20 @@ h3 {
   padding: 16px;
 }
 
+.sub-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(17, 17, 15, 0.08);
+  border-radius: 12px;
+  background: rgba(17, 17, 15, 0.025);
+}
+
+.sub-card h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+
 .form-grid,
 .finance-fields,
 .additional-details,
@@ -382,9 +396,8 @@ select {
 }
 
 .input-with-unit {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
+  position: relative;
+  display: block;
   border-radius: 8px;
   background: rgba(17, 17, 15, 0.055);
   overflow: hidden;
@@ -392,14 +405,20 @@ select {
 
 .input-with-unit input {
   background: transparent;
+  padding-inline-end: 58px;
 }
 
 .input-with-unit span {
-  min-width: 48px;
-  padding: 0 12px;
+  position: absolute;
+  inset-inline-end: 12px;
+  top: 50%;
+  transform: translateY(-50%);
   color: var(--gold);
-  font-weight: 900;
+  font-size: 0.72rem;
+  font-weight: 700;
+  opacity: 0.72;
   text-align: center;
+  pointer-events: none;
 }
 
 small {
@@ -621,6 +640,37 @@ input[readonly] {
 
 .table-currency-note span {
   color: rgba(104, 100, 92, 0.72);
+}
+
+.area-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(198, 155, 79, 0.1);
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+@media (max-width: 520px) {
+  .card {
+    padding: 14px;
+  }
+
+  .property-grid,
+  .mode-grid,
+  .kpi-grid {
+    gap: 10px;
+  }
+
+  h2 {
+    font-size: 1.45rem;
+  }
+
+  h3 {
+    font-size: 1.32rem;
+  }
 }
 
 .cashflow-table {

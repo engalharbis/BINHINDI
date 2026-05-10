@@ -87,7 +87,9 @@ function calculate() {
   const totalLandCost = state.mode === "leaseInvestment"
     ? brokerageFees + value("otherLandFees")
     : landValue + brokerageFees + transactionTax + value("otherLandFees");
-  const baseConstructionCost = value("builtUpArea") * value("constructionCostPerMeter");
+  const building = buildingMetrics();
+  if (rawValue("builtAreaMode") === "manual") document.querySelector('[name="builtUpArea"]').value = building.area || 0;
+  const baseConstructionCost = building.cost;
   const additionalCosts = rawValue("additionalCostMode") === "detailed"
     ? value("designConsultingCost")
       + value("permitCost")
@@ -97,8 +99,7 @@ function calculate() {
       + value("waterCost")
       + value("civilDefenseCost")
       + value("elevatorsCost")
-      + value("finishingCost")
-    : (value("totalAdditionalCosts") || baseConstructionCost * 0.17);
+    : baseConstructionCost * percent(value("additionalCostPercentage") || 8);
   const directDevelopmentCosts = baseConstructionCost + additionalCosts;
   const contingencyAmount = directDevelopmentCosts * percent(value("contingencyPercentage"));
   const totalDevelopmentCost = directDevelopmentCosts + contingencyAmount;
@@ -288,13 +289,22 @@ function syncOutputs() {
   const builtRatio = document.querySelector('[data-out="builtRatio"]');
   if (builtRatio) builtRatio.textContent = value("landArea") > 0 ? `${number.format((value("builtUpArea") / value("landArea")) * 100)}٪` : "0٪";
   const calculatedBuiltArea = document.querySelector('[data-out="calculatedBuiltArea"]');
-  if (calculatedBuiltArea) calculatedBuiltArea.textContent = `${number.format(calculatedArea())} م²`;
+  const building = buildingMetrics();
+  if (calculatedBuiltArea) calculatedBuiltArea.textContent = `${number.format(building.area || calculatedArea())} م²`;
+  document.querySelector('[data-out="landAreaReadonly"]').textContent = `${number.format(value("landArea"))} م²`;
   document.querySelector('[data-out="serviceArea"]').textContent = `${number.format(serviceArea())} م²`;
   document.querySelector('[data-out="netSellableArea"]').textContent = `${number.format(netArea())} م²`;
   document.querySelector('[name="builtUpArea"]').readOnly = rawValue("builtAreaMode") === "auto";
+  document.querySelector('[data-out="basementArea"]').textContent = `${number.format(building.basementArea || 0)} م²`;
+  document.querySelector('[data-out="groundFloorArea"]').textContent = `${number.format(building.groundArea || floorPlateArea())} م²`;
+  document.querySelector('[data-out="repeatedFloorsArea"]').textContent = `${number.format(building.repeatedArea || 0)} م²`;
+  document.querySelector('[data-out="annexArea"]').textContent = `${number.format(building.annexArea || 0)} م²`;
+  document.querySelector('[data-out="additionalCostsValue"]').textContent = tableMoney(calculate().additionalCosts);
+  document.querySelector('[data-out="availableNetArea"]').textContent = `${state.transactionType === "sale" ? "صافي المساحة البيعية المتاحة" : "صافي المساحة التأجيرية المتاحة"}: ${number.format(netArea())} م²`;
   document.querySelector('[data-unit="brokerage"]').textContent = rawValue("brokerageMode") === "percentage" ? "%" : "SAR";
   document.querySelector('[data-unit="tax"]').textContent = rawValue("transactionTaxMode") === "percentage" ? "%" : "SAR";
   document.querySelector('[data-unit="financing"]').textContent = rawValue("financingMode") === "ratio" ? "%" : "SAR";
+  document.querySelector('[data-unit="maintenance"]').textContent = rawValue("maintenanceMode") === "percentage" ? "%" : "SAR";
   if (value("hasFinancing")) {
     if (rawValue("financingMode") === "ratio") document.querySelector('[name="financingAmount"]').value = Math.round(r.financingAmount || 0);
     else document.querySelector('[name="financingRatio"]').value = (r.financingRatio || 0).toFixed(2);
@@ -307,6 +317,8 @@ function syncOutputs() {
 function syncVisibility() {
   $$(".purchase-only").forEach((node) => node.classList.toggle("is-hidden", state.mode === "leaseInvestment"));
   $$(".lease-only").forEach((node) => node.classList.toggle("is-hidden", state.mode !== "leaseInvestment"));
+  $(".build-auto-fields")?.classList.toggle("is-hidden", rawValue("builtAreaMode") === "manual");
+  $(".build-manual-fields")?.classList.toggle("is-hidden", rawValue("builtAreaMode") !== "manual");
   $(".additional-details")?.classList.toggle("is-hidden", rawValue("additionalCostMode") !== "detailed");
   $(".additional-summary")?.classList.toggle("is-hidden", rawValue("additionalCostMode") === "detailed");
   $(".operating-details")?.classList.toggle("is-hidden", !value("showOperatingDetails"));
@@ -320,11 +332,40 @@ function calculatedArea() {
 }
 
 function serviceArea() {
-  return value("builtUpArea") * 0.07;
+  return buildingMetrics().area * 0.07;
 }
 
 function netArea() {
-  return Math.max(value("builtUpArea") - serviceArea(), 0);
+  return Math.max(buildingMetrics().area - serviceArea(), 0);
+}
+
+function floorPlateArea() {
+  return value("landArea") * percent(value("constructionLandRatio"));
+}
+
+function buildingMetrics() {
+  if (rawValue("builtAreaMode") !== "manual") {
+    return {
+      area: value("builtUpArea"),
+      cost: value("builtUpArea") * value("constructionCostPerMeter")
+    };
+  }
+  const basementArea = value("hasBasement") ? value("landArea") * 0.9 : 0;
+  const basementCost = basementArea * value("basementCostPerMeter");
+  const groundArea = floorPlateArea();
+  const groundCost = groundArea * value("groundFloorCostPerMeter");
+  const repeatedArea = floorPlateArea() * value("repeatedFloorsCount");
+  const repeatedCost = repeatedArea * value("repeatedFloorCostPerMeter");
+  const annexArea = value("hasAnnex") ? floorPlateArea() * 0.5 : 0;
+  const annexCost = annexArea * value("annexCostPerMeter");
+  return {
+    area: basementArea + groundArea + repeatedArea + annexArea,
+    cost: basementCost + groundCost + repeatedCost + annexCost,
+    basementArea,
+    groundArea,
+    repeatedArea,
+    annexArea
+  };
 }
 
 function renderKpis(r) {
@@ -884,7 +925,6 @@ function buildReport() {
         row("مساحة الأرض", `${number.format(value("landArea"))} م²`),
         row("إيجار الأرض السنوي", currency.format(r.annualLandRent)),
         row("مسطح البناء", `${number.format(value("builtUpArea"))} م²`),
-        row("نسبة المسطح إلى الأرض", value("landArea") > 0 ? `${number.format((value("builtUpArea") / value("landArea")) * 100)}٪` : "0٪"),
         row("نسبة الإشغال", `${number.format(value("occupancyRate"))}٪`)
       ])}
       ${table("تكاليف الأرض", [
@@ -898,7 +938,7 @@ function buildReport() {
         row("إجمالي تكلفة البناء", currency.format(r.baseConstructionCost)),
         row("تكاليف التصميم والتراخيص والإشراف", currency.format(value("designConsultingCost") + value("permitCost") + value("engineeringSupervisionCost"))),
         row("البنية التحتية والكهرباء والمياه والدفاع المدني", currency.format(value("infrastructureCost") + value("electricityCost") + value("waterCost") + value("civilDefenseCost"))),
-        row("المصاعد والتشطيبات", currency.format(value("elevatorsCost") + value("finishingCost"))),
+        row("المصاعد", currency.format(value("elevatorsCost"))),
         row("إجمالي التكاليف الإضافية", currency.format(r.additionalCosts)),
         row("احتياطي المخاطر", currency.format(r.contingencyAmount)),
         row("إجمالي تكلفة التطوير", currency.format(r.totalDevelopmentCost))

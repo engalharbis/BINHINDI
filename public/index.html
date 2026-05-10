@@ -52,7 +52,7 @@
           <article class="step" data-step="0">
             <div class="section-copy">
               <h3>اختر نوع العقار</h3>
-              <p>سيتم تكييف مسميات الإيرادات حسب نوع الأصل.</p>
+              <p>سيتم تخصيص مسميات الدخل حسب نوع العقار المختار ونموذج العائد.</p>
             </div>
             <div class="property-grid" id="propertyGrid"></div>
             <div class="deal-choice" id="dealChoice">
@@ -70,9 +70,9 @@
               <p>تكلفة التملك والرسوم المرتبطة بها.</p>
             </div>
             <div class="card form-grid">
-              <label>مساحة الأرض بالمتر المربع<input name="landArea" type="number" min="0" inputmode="decimal" /></label>
-              <label class="purchase-only">سعر المتر<input name="landPricePerMeter" type="number" min="0" inputmode="decimal" /></label>
-              <label class="lease-only is-hidden">إيجار الأرض السنوي<input name="annualLandRent" type="number" min="0" inputmode="decimal" /></label>
+              <label>مساحة الأرض بالمتر المربع<div class="input-with-unit"><input name="landArea" type="number" min="0" inputmode="decimal" /><span>م²</span></div></label>
+              <label class="purchase-only">سعر المتر<div class="input-with-unit"><input name="landPricePerMeter" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
+              <label class="lease-only is-hidden">إيجار الأرض السنوي<div class="input-with-unit"><input name="annualLandRent" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
               <div class="readonly purchase-only"><span>إجمالي قيمة الأرض</span><strong data-out="landValue">0 ر.س</strong></div>
               <label>طريقة رسوم السعي أو الوساطة<select name="brokerageMode"><option value="amount">قيمة</option><option value="percentage">نسبة من قيمة العقار</option></select></label>
               <label>رسوم السعي أو الوساطة<div class="input-with-unit"><input name="brokerageFees" type="number" min="0" inputmode="decimal" /><span data-unit="brokerage">SAR</span></div><small>عادة 2.5% من قيمة الأرض أو العقار</small></label>
@@ -89,18 +89,43 @@
               <p>اجمع التكاليف المباشرة وغير المباشرة واحتياطي المخاطر.</p>
             </div>
             <div class="card form-grid">
-              <label>طريقة حساب البناء<select name="builtAreaMode"><option value="auto">حساب تلقائي</option><option value="manual">إدخال يدوي</option></select></label>
-              <label>مسطح البناء الإجمالي<input name="builtUpArea" type="number" min="0" inputmode="decimal" /><small>يحسب من مساحة الأرض عند اختيار الحساب التلقائي</small></label>
-              <label>تكلفة البناء للمتر<input name="constructionCostPerMeter" type="number" min="0" inputmode="decimal" /></label>
-              <label>نسبة البناء للأرض %<input name="constructionLandRatio" type="number" min="0" inputmode="decimal" /></label>
-              <label>عدد الأدوار<input name="floorsCount" type="number" min="0" step="0.5" inputmode="decimal" value="1" /></label>
-              <div class="readonly"><span>نسبة المسطح إلى الأرض</span><strong data-out="builtRatio">0٪</strong></div>
-              <div class="readonly"><span>المسطح المحسوب</span><strong data-out="calculatedBuiltArea">0 م²</strong></div>
+              <label>طريقة حساب البناء<select name="builtAreaMode"><option value="auto">تلقائي</option><option value="manual">يدوي</option></select></label>
+              <div class="build-auto-fields">
+                <div class="readonly"><span>مساحة الأرض</span><strong data-out="landAreaReadonly">0 م²</strong></div>
+                <label>نسبة البناء على الأرض %<div class="input-with-unit"><input name="constructionLandRatio" type="number" min="0" inputmode="decimal" /><span>%</span></div><small>هذه النسبة تمثل نسبة بناء الدور الأرضي فقط من مساحة الأرض.</small></label>
+                <label>عدد الأدوار<input name="floorsCount" type="number" min="0" step="0.5" inputmode="decimal" value="1" /></label>
+                <label>إجمالي مسطح البناء<input name="builtUpArea" type="number" min="0" inputmode="decimal" readonly /></label>
+                <label>تكلفة البناء للمتر<div class="input-with-unit"><input name="constructionCostPerMeter" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
+              </div>
+              <div class="build-manual-fields is-hidden">
+                <section class="sub-card">
+                  <label class="toggle-row">البدروم Basement<input name="hasBasement" type="checkbox" /></label>
+                  <div class="readonly"><span>مساحة البدروم</span><strong data-out="basementArea">0 م²</strong></div>
+                  <label>تكلفة متر البدروم<div class="input-with-unit"><input name="basementCostPerMeter" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
+                </section>
+                <section class="sub-card">
+                  <h4>الدور الأرضي</h4>
+                  <div class="readonly"><span>مساحة الدور الأرضي</span><strong data-out="groundFloorArea">0 م²</strong></div>
+                  <label>تكلفة متر الدور الأرضي<div class="input-with-unit"><input name="groundFloorCostPerMeter" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
+                </section>
+                <section class="sub-card">
+                  <h4>الأدوار المتكررة</h4>
+                  <label>عدد الأدوار المتكررة<input name="repeatedFloorsCount" type="number" min="0" step="0.5" inputmode="decimal" /></label>
+                  <div class="readonly"><span>إجمالي مساحة الأدوار المتكررة</span><strong data-out="repeatedFloorsArea">0 م²</strong></div>
+                  <label>تكلفة متر الأدوار المتكررة<div class="input-with-unit"><input name="repeatedFloorCostPerMeter" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
+                </section>
+                <section class="sub-card">
+                  <label class="toggle-row">الملحق<input name="hasAnnex" type="checkbox" /></label>
+                  <div class="readonly"><span>مساحة الملحق</span><strong data-out="annexArea">0 م²</strong></div>
+                  <label>تكلفة متر الملحق<div class="input-with-unit"><input name="annexCostPerMeter" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
+                </section>
+              </div>
               <div class="readonly"><span>مساحة الخدمات 7%</span><strong data-out="serviceArea">0 م²</strong></div>
               <div class="readonly"><span>صافي المساحة التأجيرية / البيعية</span><strong data-out="netSellableArea">0 م²</strong></div>
               <div class="readonly"><span>إجمالي تكلفة البناء</span><strong data-out="baseConstructionCost">0 ر.س</strong></div>
               <label>طريقة التكاليف الإضافية<select name="additionalCostMode"><option value="auto">تلقائي 17%</option><option value="detailed">تفصيلي</option></select></label>
-              <label class="additional-summary">إجمالي التكاليف الإضافية<input name="totalAdditionalCosts" type="number" min="0" inputmode="decimal" placeholder="يحسب تلقائياً 17%" /><small>تشمل التراخيص الحكومية، الكهرباء، المياه، البنية التحتية، الرسوم والتكاليف غير المباشرة.</small></label>
+              <label class="additional-summary">نسبة التكاليف الإضافية %<div class="input-with-unit"><input name="additionalCostPercentage" type="number" min="0" inputmode="decimal" value="8" /><span>%</span></div><small>عادة تتراوح التكاليف الإضافية من 7% إلى 9% من إجمالي تكلفة البناء.</small></label>
+              <div class="readonly additional-summary"><span>إجمالي التكاليف الإضافية</span><strong data-out="additionalCostsValue">0</strong></div>
               <div class="additional-details is-hidden">
                 <label>تكلفة التصميم والاستشارات<input name="designConsultingCost" type="number" min="0" inputmode="decimal" /></label>
                 <label>تكلفة التراخيص<input name="permitCost" type="number" min="0" inputmode="decimal" /></label>
@@ -110,7 +135,6 @@
                 <label>تكلفة المياه<input name="waterCost" type="number" min="0" inputmode="decimal" /></label>
                 <label>تكلفة الدفاع المدني<input name="civilDefenseCost" type="number" min="0" inputmode="decimal" /></label>
                 <label>تكلفة المصاعد إن وجدت<input name="elevatorsCost" type="number" min="0" inputmode="decimal" /></label>
-                <label>تكلفة التشطيبات<input name="finishingCost" type="number" min="0" inputmode="decimal" /></label>
               </div>
               <label>احتياطي مخاطر / طوارئ %<input name="contingencyPercentage" type="number" min="0" max="100" inputmode="decimal" value="7.5" /></label>
               <div class="readonly dark"><span>إجمالي تكلفة التطوير</span><strong data-out="totalDevelopmentCost">0 ر.س</strong></div>
@@ -123,11 +147,12 @@
               <p>حقول مرنة حسب نوع العقار المختار.</p>
             </div>
             <div class="card form-grid">
+              <p class="area-note" data-out="availableNetArea">صافي المساحة التأجيرية المتاحة: 0 م²</p>
               <label><span data-label="unitsCount">عدد الوحدات</span><input name="unitsCount" type="number" min="0" inputmode="decimal" /></label>
-              <label><span data-label="averageMonthlyRent">متوسط إيجار الشقة السنوي</span><input name="averageMonthlyRent" type="number" min="0" inputmode="decimal" /></label>
-              <label>نسبة الإشغال المتوقعة %<input name="occupancyRate" type="number" min="0" max="100" inputmode="decimal" value="90" /></label>
+              <label><span data-label="averageMonthlyRent">متوسط إيجار الشقة السنوي</span><div class="input-with-unit"><input name="averageMonthlyRent" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
+              <label>نسبة الإشغال المتوقعة %<div class="input-with-unit"><input name="occupancyRate" type="number" min="0" max="100" inputmode="decimal" value="90" /><span>%</span></div></label>
               <label class="hotel-only is-hidden">عدد أيام التشغيل<input name="operatingDays" type="number" min="0" inputmode="decimal" value="365" /></label>
-              <label><span data-label="additionalIncome">دخل إضافي</span><input name="additionalIncome" type="number" min="0" inputmode="decimal" /></label>
+              <label><span data-label="additionalIncome">دخل إضافي</span><div class="input-with-unit"><input name="additionalIncome" type="number" min="0" inputmode="decimal" /><span>SAR</span></div><small>(محلات، معارض، خدمات أخرى)</small></label>
               <div class="readonly"><span>إجمالي الدخل الشهري</span><strong data-out="monthlyIncome">0 ر.س</strong></div>
               <div class="readonly dark"><span>إجمالي الدخل السنوي</span><strong data-out="annualRevenue">0 ر.س</strong></div>
               <div class="readonly"><span>متوسط مساحة الوحدة المقترحة</span><strong data-out="suggestedUnitArea">0 م²</strong></div>
@@ -140,18 +165,18 @@
               <p>مصاريف سنوية ثابتة ونسبة متغيرة من الإيراد.</p>
             </div>
             <div class="card form-grid">
-              <label>طريقة الصيانة السنوية<select name="maintenanceMode"><option value="amount">قيمة</option><option value="percentage">نسبة من الدخل</option></select></label>
-              <label>الصيانة السنوية<input name="annualMaintenance" type="number" min="0" inputmode="decimal" /></label>
+              <label>الصيانة السنوية<select name="maintenanceMode"><option value="amount">قيمة</option><option value="percentage">نسبة من الدخل</option></select></label>
+              <label>قيمة / نسبة الصيانة<div class="input-with-unit"><input name="annualMaintenance" type="number" min="0" inputmode="decimal" /><span data-unit="maintenance">SAR</span></div></label>
               <label class="toggle-row">إضافة تفاصيل المصاريف التشغيلية<input name="showOperatingDetails" type="checkbox" /></label>
               <label class="operating-summary">إجمالي المصاريف التشغيلية<input name="totalOperatingExpenses" type="number" min="0" inputmode="decimal" /></label>
               <div class="operating-details is-hidden">
-                <label>الإدارة والتشغيل<input name="managementOperations" type="number" min="0" inputmode="decimal" /></label>
-                <label>النظافة<input name="cleaning" type="number" min="0" inputmode="decimal" /></label>
-                <label>الكهرباء والمياه<input name="ownerUtilities" type="number" min="0" inputmode="decimal" /></label>
-                <label>الحراسة والأمن<input name="security" type="number" min="0" inputmode="decimal" /></label>
-                <label>التأمين<input name="insurance" type="number" min="0" inputmode="decimal" /></label>
-                <label>التسويق<input name="marketing" type="number" min="0" inputmode="decimal" /></label>
-                <label>مصاريف أخرى<input name="otherOperatingExpenses" type="number" min="0" inputmode="decimal" /></label>
+                <label>الإدارة والتشغيل<div class="input-with-unit"><input name="managementOperations" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
+                <label>النظافة<div class="input-with-unit"><input name="cleaning" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
+                <label>الكهرباء والمياه<div class="input-with-unit"><input name="ownerUtilities" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
+                <label>الحراسة والأمن<div class="input-with-unit"><input name="security" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
+                <label>التأمين<div class="input-with-unit"><input name="insurance" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
+                <label>التسويق<div class="input-with-unit"><input name="marketing" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
+                <label>مصاريف أخرى<div class="input-with-unit"><input name="otherOperatingExpenses" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
               </div>
               <div class="readonly dark"><span>صافي الدخل التشغيلي NOI</span><strong data-out="noi">0 ر.س</strong></div>
             </div>
