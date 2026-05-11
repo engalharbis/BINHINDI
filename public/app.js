@@ -109,7 +109,9 @@ function calculate() {
   let annualRevenue = 0;
   let monthlyIncome = 0;
   if (state.transactionType === "sale") {
-    annualRevenue = netArea() * value("averageMonthlyRent") + value("additionalIncome");
+    annualRevenue = rawValue("saleMethod") === "units"
+      ? (value("unitsCount") * value("averageMonthlyRent")) + value("additionalIncome")
+      : netArea() * value("averageMonthlyRent");
     monthlyIncome = annualRevenue / 12;
   } else if (state.propertyType === "hospitalityServicedApartments") {
     annualRevenue = (value("unitsCount") * value("averageMonthlyRent") * value("operatingDays") * occupancy) + value("additionalIncome");
@@ -260,13 +262,17 @@ function renderPropertyTypes() {
 
 function updatePropertyLabels() {
   const selected = propertyTypes.find(([id]) => id === state.propertyType);
-  document.querySelector('[data-label="unitsCount"]').textContent = selected[3];
-  document.querySelector('[data-label="averageMonthlyRent"]').textContent = state.transactionType === "sale" ? "سعر البيع للمتر / الوحدة" : selected[4].replace("الشهري", "السنوي");
+  document.querySelector('[data-label="unitsCount"]').textContent = state.transactionType === "sale" ? "عدد الوحدات المعروضة للبيع" : selected[3];
+  document.querySelector('[data-label="averageMonthlyRent"]').textContent = state.transactionType === "sale"
+    ? (rawValue("saleMethod") === "units" ? "متوسط سعر بيع الوحدة" : "سعر البيع للمتر")
+    : selected[4].replace("الشهري", "السنوي");
   document.querySelector('[data-label="additionalIncome"]').textContent = selected[5];
   document.querySelector('[data-label="totalLandCost"]').textContent = state.mode === "leaseInvestment" ? "تكاليف تأسيس الأرض المستأجرة" : "إجمالي تكلفة تملك الأرض";
   $(".hotel-only").classList.toggle("is-hidden", state.propertyType !== "hospitalityServicedApartments");
   $$(".segment-card").forEach((button) => button.classList.toggle("is-selected", button.dataset.transaction === state.transactionType));
   document.querySelector('[data-transaction="sale"]')?.classList.toggle("is-hidden", state.mode === "leaseInvestment");
+  $$(".rent-only").forEach((node) => node.classList.toggle("is-hidden", state.transactionType === "sale"));
+  $$(".sale-only").forEach((node) => node.classList.toggle("is-hidden", state.transactionType !== "sale"));
 }
 
 function syncOutputs() {
@@ -296,7 +302,8 @@ function syncOutputs() {
   document.querySelector('[data-out="netSellableArea"]').textContent = `${number.format(netArea())} م²`;
   document.querySelector('[name="builtUpArea"]').readOnly = rawValue("builtAreaMode") === "auto";
   document.querySelector('[data-out="basementArea"]').textContent = `${number.format(building.basementArea || 0)} م²`;
-  document.querySelector('[data-out="groundFloorArea"]').textContent = `${number.format(building.groundArea || floorPlateArea())} م²`;
+  const groundFloorAreaOut = document.querySelector('[data-out="groundFloorArea"]');
+  if (groundFloorAreaOut) groundFloorAreaOut.textContent = `${number.format(building.groundArea || floorPlateArea())} م²`;
   document.querySelector('[data-out="repeatedFloorsArea"]').textContent = `${number.format(building.repeatedArea || 0)} م²`;
   document.querySelector('[data-out="annexArea"]').textContent = `${number.format(building.annexArea || 0)} م²`;
   document.querySelector('[data-out="additionalCostsValue"]').textContent = tableMoney(calculate().additionalCosts);
@@ -352,11 +359,12 @@ function buildingMetrics() {
   }
   const basementArea = value("hasBasement") ? value("landArea") * 0.9 : 0;
   const basementCost = basementArea * value("basementCostPerMeter");
-  const groundArea = floorPlateArea();
+  const groundArea = value("groundFloorAreaInput") || floorPlateArea();
   const groundCost = groundArea * value("groundFloorCostPerMeter");
-  const repeatedArea = floorPlateArea() * value("repeatedFloorsCount");
+  const repeatedFloorArea = value("repeatedFloorAreaInput") || floorPlateArea();
+  const repeatedArea = repeatedFloorArea * value("repeatedFloorsCount");
   const repeatedCost = repeatedArea * value("repeatedFloorCostPerMeter");
-  const annexArea = value("hasAnnex") ? floorPlateArea() * 0.5 : 0;
+  const annexArea = value("hasAnnex") ? repeatedFloorArea * 0.5 : 0;
   const annexCost = annexArea * value("annexCostPerMeter");
   return {
     area: basementArea + groundArea + repeatedArea + annexArea,
@@ -886,6 +894,14 @@ function buildReport() {
   const reportPieLegend = chartMeta.pie.map((item) => `<div>${item.label}: ${currency.format(item.value)} · ${number.format((item.value / item.total) * 100)}%</div>`).join("");
   const reportShowLandRent = state.mode === "leaseInvestment";
   const reportIncomeLabel = state.transactionType === "sale" ? "البيع" : "الدخل";
+  const costDistributionRows = [
+    ["قيمة الأرض", state.mode === "purchase" ? r.landValue : 0],
+    ["تكلفة البناء والتطوير", r.totalDevelopmentCost],
+    ["التكاليف الإضافية", r.additionalCosts],
+    ["التكاليف التشغيلية", r.operatingExpenses],
+    ["التمويل", r.annualDebtService],
+    ["الاحتياطي والمخاطر", r.contingencyAmount]
+  ].map(([label, amount]) => row(label, `${tableMoney(amount)} · ${number.format(r.totalProjectCost ? (amount / r.totalProjectCost) * 100 : 0)}%`));
   const row = (label, val) => `<tr><td>${label}</td><td>${stripSAR(val)}</td></tr>`;
   const table = (title, rows) => `<section class="report-section"><h2>${title}</h2><table>${rows.join("")}</table></section>`;
   $("#printReport").innerHTML = `
@@ -1011,6 +1027,7 @@ function buildReport() {
         </table>
         <p class="report-note">${reportPaybackYear ? `تم استرداد رأس المال في السنة ${reportPaybackYear}` : "لم يتم الاسترداد خلال مدة المشروع"}</p>
       </section>
+      ${table("توزيع التكاليف", costDistributionRows)}
       <section class="report-section">
         <h2>الرسوم البيانية</h2>
         <div class="report-charts">
@@ -1137,6 +1154,7 @@ function resetAll() {
 document.addEventListener("input", (event) => {
   if (event.target.matches("input, select")) {
     if (event.target.type === "number" && Number(event.target.value) < 0) event.target.value = 0;
+    if (event.target.name === "saleMethod") updatePropertyLabels();
     if ((event.target.name === "landArea" || event.target.name === "constructionLandRatio" || event.target.name === "floorsCount" || event.target.name === "builtAreaMode") && rawValue("builtAreaMode") === "auto") {
       document.querySelector('[name="builtUpArea"]').value = calculatedArea();
     }

@@ -74,9 +74,9 @@
               <label class="purchase-only">سعر المتر<div class="input-with-unit"><input name="landPricePerMeter" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
               <label class="lease-only is-hidden">إيجار الأرض السنوي<div class="input-with-unit"><input name="annualLandRent" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
               <div class="readonly purchase-only"><span>إجمالي قيمة الأرض</span><strong data-out="landValue">0 ر.س</strong></div>
-              <label>طريقة رسوم السعي أو الوساطة<select name="brokerageMode"><option value="amount">قيمة</option><option value="percentage">نسبة من قيمة العقار</option></select></label>
+              <label>طريقة رسوم السعي أو الوساطة<select name="brokerageMode"><option value="percentage">نسبة من قيمة العقار</option><option value="amount">قيمة</option></select></label>
               <label>رسوم السعي أو الوساطة<div class="input-with-unit"><input name="brokerageFees" type="number" min="0" inputmode="decimal" /><span data-unit="brokerage">SAR</span></div><small>عادة 2.5% من قيمة الأرض أو العقار</small></label>
-              <label class="purchase-only">طريقة ضريبة التصرفات العقارية<select name="transactionTaxMode"><option value="amount">قيمة</option><option value="percentage">نسبة من قيمة العقار</option></select></label>
+              <label class="purchase-only">طريقة ضريبة التصرفات العقارية<select name="transactionTaxMode"><option value="percentage">نسبة من قيمة العقار</option><option value="amount">قيمة</option></select></label>
               <label class="purchase-only">ضريبة التصرفات العقارية<div class="input-with-unit"><input name="realEstateTransactionTax" type="number" min="0" inputmode="decimal" /><span data-unit="tax">SAR</span></div><small>عادة 5% من قيمة الأرض أو العقار</small></label>
               <label>رسوم أخرى<input name="otherLandFees" type="number" min="0" inputmode="decimal" /></label>
               <div class="readonly dark"><span data-label="totalLandCost">إجمالي تكلفة تملك الأرض</span><strong data-out="totalLandCost">0 ر.س</strong></div>
@@ -105,11 +105,12 @@
                 </section>
                 <section class="sub-card">
                   <h4>الدور الأرضي</h4>
-                  <div class="readonly"><span>مساحة الدور الأرضي</span><strong data-out="groundFloorArea">0 م²</strong></div>
+                  <label>مساحة الدور الأرضي<div class="input-with-unit"><input name="groundFloorAreaInput" type="number" min="0" inputmode="decimal" /><span>م²</span></div></label>
                   <label>تكلفة متر الدور الأرضي<div class="input-with-unit"><input name="groundFloorCostPerMeter" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
                 </section>
                 <section class="sub-card">
                   <h4>الأدوار المتكررة</h4>
+                  <label>مساحة الدور المتكرر الواحد<div class="input-with-unit"><input name="repeatedFloorAreaInput" type="number" min="0" inputmode="decimal" /><span>م²</span></div></label>
                   <label>عدد الأدوار المتكررة<input name="repeatedFloorsCount" type="number" min="0" step="0.5" inputmode="decimal" /></label>
                   <div class="readonly"><span>إجمالي مساحة الأدوار المتكررة</span><strong data-out="repeatedFloorsArea">0 م²</strong></div>
                   <label>تكلفة متر الأدوار المتكررة<div class="input-with-unit"><input name="repeatedFloorCostPerMeter" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
@@ -124,7 +125,7 @@
               <div class="readonly"><span>صافي المساحة التأجيرية / البيعية</span><strong data-out="netSellableArea">0 م²</strong></div>
               <div class="readonly"><span>إجمالي تكلفة البناء</span><strong data-out="baseConstructionCost">0 ر.س</strong></div>
               <label>طريقة التكاليف الإضافية<select name="additionalCostMode"><option value="auto">تلقائي 17%</option><option value="detailed">تفصيلي</option></select></label>
-              <label class="additional-summary">نسبة التكاليف الإضافية %<div class="input-with-unit"><input name="additionalCostPercentage" type="number" min="0" inputmode="decimal" value="8" /><span>%</span></div><small>عادة تتراوح التكاليف الإضافية من 7% إلى 9% من إجمالي تكلفة البناء.</small></label>
+              <label class="additional-summary">نسبة التكاليف الإضافية %<div class="input-with-unit"><input name="additionalCostPercentage" type="number" min="0" inputmode="decimal" value="8" /><span>%</span></div><small>تشمل عادة: توصيل الكهرباء والمياه، الإشراف، التراخيص الحكومية، والتكاليف غير المباشرة.</small><small>عادة تتراوح التكاليف الإضافية من 5% إلى 10% من إجمالي تكلفة البناء.</small></label>
               <div class="readonly additional-summary"><span>إجمالي التكاليف الإضافية</span><strong data-out="additionalCostsValue">0</strong></div>
               <div class="additional-details is-hidden">
                 <label>تكلفة التصميم والاستشارات<input name="designConsultingCost" type="number" min="0" inputmode="decimal" /></label>
@@ -148,14 +149,14 @@
             </div>
             <div class="card form-grid">
               <p class="area-note" data-out="availableNetArea">صافي المساحة التأجيرية المتاحة: 0 م²</p>
+              <label class="sale-only is-hidden">طريقة البيع<select name="saleMethod"><option value="meter">البيع بالمتر</option><option value="units">البيع بالوحدات</option></select></label>
               <label><span data-label="unitsCount">عدد الوحدات</span><input name="unitsCount" type="number" min="0" inputmode="decimal" /></label>
               <label><span data-label="averageMonthlyRent">متوسط إيجار الشقة السنوي</span><div class="input-with-unit"><input name="averageMonthlyRent" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
               <label>نسبة الإشغال المتوقعة %<div class="input-with-unit"><input name="occupancyRate" type="number" min="0" max="100" inputmode="decimal" value="90" /><span>%</span></div></label>
               <label class="hotel-only is-hidden">عدد أيام التشغيل<input name="operatingDays" type="number" min="0" inputmode="decimal" value="365" /></label>
               <label><span data-label="additionalIncome">دخل إضافي</span><div class="input-with-unit"><input name="additionalIncome" type="number" min="0" inputmode="decimal" /><span>SAR</span></div><small>(محلات، معارض، خدمات أخرى)</small></label>
-              <div class="readonly"><span>إجمالي الدخل الشهري</span><strong data-out="monthlyIncome">0 ر.س</strong></div>
+              <div class="readonly rent-only"><span>إجمالي الدخل الشهري</span><strong data-out="monthlyIncome">0 ر.س</strong></div>
               <div class="readonly dark"><span>إجمالي الدخل السنوي</span><strong data-out="annualRevenue">0 ر.س</strong></div>
-              <div class="readonly"><span>متوسط مساحة الوحدة المقترحة</span><strong data-out="suggestedUnitArea">0 م²</strong></div>
             </div>
           </article>
 
