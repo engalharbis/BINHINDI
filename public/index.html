@@ -74,7 +74,7 @@
               <label class="purchase-only">سعر المتر<div class="input-with-unit"><input name="landPricePerMeter" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
               <label class="lease-only is-hidden">إيجار الأرض السنوي<div class="input-with-unit"><input name="annualLandRent" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
               <label class="lease-only is-hidden">مدة عقد الأرض<div class="input-with-unit"><input name="leaseTermYears" type="number" min="0" inputmode="decimal" value="10" /><span>سنة</span></div></label>
-              <label class="lease-only is-hidden">نسبة زيادة إيجار الأرض السنوية<div class="input-with-unit"><input name="annualLandRentEscalation" type="number" min="0" inputmode="decimal" value="2" /><span>%</span></div></label>
+              <label class="lease-only is-hidden">نسبة زيادة إيجار الأرض السنوية<div class="input-with-unit"><input name="annualLandRentEscalation" type="number" min="0" inputmode="decimal" /><span>%</span></div></label>
               <div class="readonly purchase-only"><span>إجمالي قيمة الأرض</span><strong data-out="landValue">0 ر.س</strong></div>
               <label>طريقة رسوم السعي أو الوساطة<select name="brokerageMode"><option value="percentage">نسبة من قيمة العقار</option><option value="amount">قيمة</option></select></label>
               <label>رسوم السعي أو الوساطة<div class="input-with-unit"><input name="brokerageFees" type="number" min="0" inputmode="decimal" /><span data-unit="brokerage">SAR</span></div><small>عادة 2.5% من قيمة الأرض أو العقار</small></label>
@@ -127,7 +127,7 @@
               <div class="readonly"><span>صافي المساحة التأجيرية / البيعية</span><strong data-out="netSellableArea">0 م²</strong></div>
               <div class="readonly"><span>إجمالي تكلفة البناء</span><strong data-out="baseConstructionCost">0 ر.س</strong></div>
               <label>التكاليف الإضافية<select name="additionalCostMode"><option value="auto">تلقائي</option><option value="detailed">تفصيلي</option></select></label>
-              <label class="additional-summary">نسبة التكاليف الإضافية %<div class="input-with-unit"><input name="additionalCostPercentage" type="number" min="0" inputmode="decimal" value="8" /><span>%</span></div><small>تشمل عادة: توصيل الكهرباء والمياه، الإشراف، التراخيص الحكومية، والتكاليف غير المباشرة.</small><small>عادة تتراوح التكاليف الإضافية من 5% إلى 10% من إجمالي تكلفة البناء.</small></label>
+              <label class="additional-summary">نسبة التكاليف الإضافية %<div class="input-with-unit"><input name="additionalCostPercentage" type="number" min="0" inputmode="decimal" placeholder="أدخل النسبة" /><span>%</span></div><small>تشمل عادة: توصيل الكهرباء والمياه، الإشراف، التراخيص الحكومية، والتكاليف غير المباشرة.</small><small>عادة تتراوح التكاليف الإضافية من 5% إلى 10% من إجمالي تكلفة البناء.</small></label>
               <div class="readonly additional-summary"><span>إجمالي التكاليف الإضافية</span><strong data-out="additionalCostsValue">0</strong></div>
               <div class="additional-details is-hidden">
                 <label>الاستشاري<input name="designConsultingCost" type="number" min="0" inputmode="decimal" /></label>

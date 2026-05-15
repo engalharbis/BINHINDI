@@ -273,7 +273,7 @@ h3 {
 
 .step {
   display: grid;
-  gap: 16px;
+  gap: 20px;
 }
 
 .section-copy {
@@ -346,7 +346,7 @@ h3 {
 }
 
 .card {
-  padding: 16px;
+  padding: 20px;
 }
 
 .sub-card {
@@ -368,14 +368,14 @@ h3 {
 .additional-details,
 .operating-details {
   display: grid;
-  gap: 13px;
+  gap: 16px;
 }
 
 label {
   display: grid;
-  gap: 8px;
+  gap: 9px;
   color: var(--charcoal);
-  font-size: 0.92rem;
+  font-size: 0.95rem;
   font-weight: 750;
   text-align: right;
 }
@@ -383,7 +383,7 @@ label {
 input,
 select {
   width: 100%;
-  min-height: 50px;
+  min-height: 54px;
   border: 1px solid rgba(198, 155, 79, 0.26);
   border-radius: 8px;
   padding: 0 14px;
@@ -460,8 +460,8 @@ input[readonly] {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  min-height: 54px;
-  padding: 12px 14px;
+  min-height: 58px;
+  padding: 14px 16px;
   border-radius: 8px;
   border: 1px solid rgba(17, 17, 15, 0.06);
   background: rgba(17, 17, 15, 0.055);
@@ -535,12 +535,20 @@ input[readonly] {
   font-weight: 750;
 }
 
-.rating-card[data-rating="ممتاز"] strong {
+.rating-card[data-rating="ممتاز"],
+.rating-card[data-rating="ممتاز جداً"] {
+  box-shadow: inset 0 0 0 1px rgba(85, 199, 135, 0.25), 0 18px 42px rgba(17, 17, 15, 0.12);
+}
+
+.rating-card[data-rating="ممتاز"] strong,
+.rating-card[data-rating="ممتاز جداً"] strong {
   color: #55c787;
 }
 
 .rating-card[data-rating="متوسط"] strong,
-.rating-card[data-rating="جيد"] strong {
+.rating-card[data-rating="جيد"] strong,
+.rating-card[data-rating="جيد جداً"] strong,
+.rating-card[data-rating="مقبول"] strong {
   color: var(--gold);
 }
 
@@ -984,6 +992,12 @@ canvas {
 
 .report-section tr:nth-child(even) td {
   background: #f8f5ee;
+}
+
+.report-section tr.is-payback td {
+  background: #e8f6ee !important;
+  color: #17603a;
+  font-weight: 900;
 }
 
 .report-section td:first-child {
