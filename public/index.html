@@ -15,8 +15,8 @@
       <section id="splash" class="splash">
         <img class="logo-mark" src="/assets/logo.svg" alt="بداية الطريق العقارية" />
         <p class="eyebrow">شركة بداية الطريق العقارية · Start Road Real Estate Company</p>
-        <h1>احسب استثمارك العقاري بدقة</h1>
-        <p class="lead">منصة احترافية لتحليل تكلفة التطوير، الإيرادات، التمويل، التدفقات النقدية، وإصدار تقرير استثماري جاهز للعرض.</p>
+        <h1>احسب جدوى استثمارك العقاري باحترافية</h1>
+        <p class="lead">تحليل مالي متكامل للتطوير، التأجير، البيع، والتمويل البنكي.</p>
         <div class="intro-card">
           <strong>تحليل استثماري شامل</strong>
           <span>مدخلات منظمة، مؤشرات مالية واضحة، رسوم بيانية، وتقرير PDF بمظهر مناسب للمستثمرين.</span>
@@ -25,12 +25,12 @@
           <button class="mode-card" data-mode="purchase" type="button">
             <b class="mode-icon">🏢</b>
             <strong>شراء عقار</strong>
-            <span>شراء أرض أو أصل عقاري ثم تطويره أو تشغيله.</span>
+            <span>شراء أرض أو أصل عقاري بهدف البيع أو التأجير.</span>
           </button>
           <button class="mode-card" data-mode="leaseInvestment" type="button">
             <b class="mode-icon">📈</b>
             <strong>استثمار</strong>
-            <span>استئجار أرض وتطويرها وحساب الجدوى التشغيلية دون احتساب قيمة شراء الأرض.</span>
+            <span>تطوير وتشغيل مشروع على أرض مستأجرة بهدف التأجير فقط.</span>
           </button>
         </div>
         <button class="secondary-btn" data-load-project type="button">استرجاع آخر مشروع محفوظ</button>
@@ -73,6 +73,8 @@
               <label>مساحة الأرض بالمتر المربع<div class="input-with-unit"><input name="landArea" type="number" min="0" inputmode="decimal" /><span>م²</span></div></label>
               <label class="purchase-only">سعر المتر<div class="input-with-unit"><input name="landPricePerMeter" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
               <label class="lease-only is-hidden">إيجار الأرض السنوي<div class="input-with-unit"><input name="annualLandRent" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
+              <label class="lease-only is-hidden">مدة عقد الأرض<div class="input-with-unit"><input name="leaseTermYears" type="number" min="0" inputmode="decimal" value="10" /><span>سنة</span></div></label>
+              <label class="lease-only is-hidden">نسبة زيادة إيجار الأرض السنوية<div class="input-with-unit"><input name="annualLandRentEscalation" type="number" min="0" inputmode="decimal" value="2" /><span>%</span></div></label>
               <div class="readonly purchase-only"><span>إجمالي قيمة الأرض</span><strong data-out="landValue">0 ر.س</strong></div>
               <label>طريقة رسوم السعي أو الوساطة<select name="brokerageMode"><option value="percentage">نسبة من قيمة العقار</option><option value="amount">قيمة</option></select></label>
               <label>رسوم السعي أو الوساطة<div class="input-with-unit"><input name="brokerageFees" type="number" min="0" inputmode="decimal" /><span data-unit="brokerage">SAR</span></div><small>عادة 2.5% من قيمة الأرض أو العقار</small></label>
@@ -124,18 +126,19 @@
               <div class="readonly"><span>مساحة الخدمات 7%</span><strong data-out="serviceArea">0 م²</strong></div>
               <div class="readonly"><span>صافي المساحة التأجيرية / البيعية</span><strong data-out="netSellableArea">0 م²</strong></div>
               <div class="readonly"><span>إجمالي تكلفة البناء</span><strong data-out="baseConstructionCost">0 ر.س</strong></div>
-              <label>طريقة التكاليف الإضافية<select name="additionalCostMode"><option value="auto">تلقائي 17%</option><option value="detailed">تفصيلي</option></select></label>
+              <label>التكاليف الإضافية<select name="additionalCostMode"><option value="auto">تلقائي</option><option value="detailed">تفصيلي</option></select></label>
               <label class="additional-summary">نسبة التكاليف الإضافية %<div class="input-with-unit"><input name="additionalCostPercentage" type="number" min="0" inputmode="decimal" value="8" /><span>%</span></div><small>تشمل عادة: توصيل الكهرباء والمياه، الإشراف، التراخيص الحكومية، والتكاليف غير المباشرة.</small><small>عادة تتراوح التكاليف الإضافية من 5% إلى 10% من إجمالي تكلفة البناء.</small></label>
               <div class="readonly additional-summary"><span>إجمالي التكاليف الإضافية</span><strong data-out="additionalCostsValue">0</strong></div>
               <div class="additional-details is-hidden">
-                <label>تكلفة التصميم والاستشارات<input name="designConsultingCost" type="number" min="0" inputmode="decimal" /></label>
-                <label>تكلفة التراخيص<input name="permitCost" type="number" min="0" inputmode="decimal" /></label>
-                <label>تكلفة الإشراف الهندسي<input name="engineeringSupervisionCost" type="number" min="0" inputmode="decimal" /></label>
-                <label>تكلفة البنية التحتية<input name="infrastructureCost" type="number" min="0" inputmode="decimal" /></label>
-                <label>تكلفة الكهرباء<input name="electricityCost" type="number" min="0" inputmode="decimal" /></label>
-                <label>تكلفة المياه<input name="waterCost" type="number" min="0" inputmode="decimal" /></label>
-                <label>تكلفة الدفاع المدني<input name="civilDefenseCost" type="number" min="0" inputmode="decimal" /></label>
-                <label>تكلفة المصاعد إن وجدت<input name="elevatorsCost" type="number" min="0" inputmode="decimal" /></label>
+                <label>الاستشاري<input name="designConsultingCost" type="number" min="0" inputmode="decimal" /></label>
+                <label>الإشراف<input name="engineeringSupervisionCost" type="number" min="0" inputmode="decimal" /></label>
+                <label>التراخيص<input name="permitCost" type="number" min="0" inputmode="decimal" /></label>
+                <label>الكهرباء<input name="electricityCost" type="number" min="0" inputmode="decimal" /></label>
+                <label>المياه<input name="waterCost" type="number" min="0" inputmode="decimal" /></label>
+                <label>الدفاع المدني<input name="civilDefenseCost" type="number" min="0" inputmode="decimal" /></label>
+                <label>المصاعد<input name="elevatorsCost" type="number" min="0" inputmode="decimal" /></label>
+                <label>التكاليف غير المباشرة<input name="infrastructureCost" type="number" min="0" inputmode="decimal" /></label>
+                <label>أخرى<input name="otherDevelopmentCost" type="number" min="0" inputmode="decimal" /></label>
               </div>
               <label>احتياطي مخاطر / طوارئ %<input name="contingencyPercentage" type="number" min="0" max="100" inputmode="decimal" value="7.5" /></label>
               <div class="readonly dark"><span>إجمالي تكلفة التطوير</span><strong data-out="totalDevelopmentCost">0 ر.س</strong></div>
@@ -150,36 +153,39 @@
             <div class="card form-grid">
               <p class="area-note" data-out="availableNetArea">صافي المساحة التأجيرية المتاحة: 0 م²</p>
               <label class="sale-only is-hidden">طريقة البيع<select name="saleMethod"><option value="meter">البيع بالمتر</option><option value="units">البيع بالوحدات</option></select></label>
-              <label><span data-label="unitsCount">عدد الوحدات</span><input name="unitsCount" type="number" min="0" inputmode="decimal" /></label>
+              <label class="unit-count-field"><span data-label="unitsCount">عدد الوحدات</span><input name="unitsCount" type="number" min="0" inputmode="decimal" /></label>
               <label><span data-label="averageMonthlyRent">متوسط إيجار الشقة السنوي</span><div class="input-with-unit"><input name="averageMonthlyRent" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
-              <label>نسبة الإشغال المتوقعة %<div class="input-with-unit"><input name="occupancyRate" type="number" min="0" max="100" inputmode="decimal" value="90" /><span>%</span></div></label>
+              <label class="rent-only">نسبة الإشغال المتوقعة %<div class="input-with-unit"><input name="occupancyRate" type="number" min="0" max="100" inputmode="decimal" value="90" /><span>%</span></div></label>
               <label class="hotel-only is-hidden">عدد أيام التشغيل<input name="operatingDays" type="number" min="0" inputmode="decimal" value="365" /></label>
-              <label><span data-label="additionalIncome">دخل إضافي</span><div class="input-with-unit"><input name="additionalIncome" type="number" min="0" inputmode="decimal" /><span>SAR</span></div><small>(محلات، معارض، خدمات أخرى)</small></label>
+              <label><span data-label="additionalIncome">دخل إضافي</span><div class="input-with-unit"><input name="additionalIncome" type="number" min="0" inputmode="decimal" /><span>SAR</span></div><small data-label="additionalIncomeHint">(محلات، معارض، خدمات أخرى)</small></label>
+              <label class="sale-units-only is-hidden">وحدات أخرى للبيع<input name="otherSaleUnits" type="number" min="0" inputmode="decimal" /></label>
               <div class="readonly rent-only"><span>إجمالي الدخل الشهري</span><strong data-out="monthlyIncome">0 ر.س</strong></div>
-              <div class="readonly dark"><span>إجمالي الدخل السنوي</span><strong data-out="annualRevenue">0 ر.س</strong></div>
+              <div class="readonly dark"><span data-label="annualRevenueTitle">إجمالي الدخل السنوي</span><strong data-out="annualRevenue">0 ر.س</strong></div>
             </div>
           </article>
 
           <article class="step is-hidden" data-step="4">
             <div class="section-copy">
               <h3>المصاريف التشغيلية</h3>
-              <p>مصاريف سنوية ثابتة ونسبة متغيرة من الإيراد.</p>
+              <p>تشمل مصاريف الصيانة والتشغيل السنوية مثل الإدارة، الكهرباء، المياه، الحراسة، النظافة، والتشغيل العام.</p>
             </div>
             <div class="card form-grid">
-              <label>الصيانة السنوية<select name="maintenanceMode"><option value="amount">قيمة</option><option value="percentage">نسبة من الدخل</option></select></label>
+              <label>الصيانة السنوية<select name="maintenanceMode"><option value="percentage">نسبة من الدخل</option><option value="amount">قيمة ثابتة</option></select></label>
               <label>قيمة / نسبة الصيانة<div class="input-with-unit"><input name="annualMaintenance" type="number" min="0" inputmode="decimal" /><span data-unit="maintenance">SAR</span></div></label>
-              <label class="toggle-row">إضافة تفاصيل المصاريف التشغيلية<input name="showOperatingDetails" type="checkbox" /></label>
-              <label class="operating-summary">إجمالي المصاريف التشغيلية<input name="totalOperatingExpenses" type="number" min="0" inputmode="decimal" /></label>
+              <small class="maintenance-note">عادة تتراوح نسبة الصيانة السنوية بين 2% إلى 5% من الدخل السنوي حسب نوع العقار وعمره.</small>
+              <label>طريقة المصاريف التشغيلية<select name="operatingExpenseMode"><option value="percentage">نسبة من الدخل</option><option value="detailed">تفصيلي</option></select></label>
+              <label class="operating-percentage">نسبة المصاريف التشغيلية<div class="input-with-unit"><input name="operatingExpensePercentage" type="number" min="0" inputmode="decimal" placeholder="حسب نوع العقار" /><span>%</span></div></label>
               <div class="operating-details is-hidden">
                 <label>الإدارة والتشغيل<div class="input-with-unit"><input name="managementOperations" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
                 <label>النظافة<div class="input-with-unit"><input name="cleaning" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
-                <label>الكهرباء والمياه<div class="input-with-unit"><input name="ownerUtilities" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
-                <label>الحراسة والأمن<div class="input-with-unit"><input name="security" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
+                <label>الكهرباء<div class="input-with-unit"><input name="operatingElectricity" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
+                <label>المياه<div class="input-with-unit"><input name="operatingWater" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
+                <label>الحراسة<div class="input-with-unit"><input name="security" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
                 <label>التأمين<div class="input-with-unit"><input name="insurance" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
-                <label>التسويق<div class="input-with-unit"><input name="marketing" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
-                <label>مصاريف أخرى<div class="input-with-unit"><input name="otherOperatingExpenses" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
+                <label>أخرى<div class="input-with-unit"><input name="otherOperatingExpenses" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
               </div>
-              <div class="readonly dark"><span>صافي الدخل التشغيلي NOI</span><strong data-out="noi">0 ر.س</strong></div>
+              <div class="readonly"><span>إجمالي المصاريف التشغيلية</span><strong data-out="operatingExpenses">0 ر.س</strong></div>
+              <div class="readonly dark rent-only"><span>صافي الدخل التشغيلي NOI</span><strong data-out="noi">0 ر.س</strong></div>
             </div>
           </article>
 

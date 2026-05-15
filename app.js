@@ -99,6 +99,7 @@ function calculate() {
       + value("waterCost")
       + value("civilDefenseCost")
       + value("elevatorsCost")
+      + value("otherDevelopmentCost")
     : baseConstructionCost * percent(value("additionalCostPercentage") || 8);
   const directDevelopmentCosts = baseConstructionCost + additionalCosts;
   const contingencyAmount = directDevelopmentCosts * percent(value("contingencyPercentage"));
@@ -110,8 +111,8 @@ function calculate() {
   let monthlyIncome = 0;
   if (state.transactionType === "sale") {
     annualRevenue = rawValue("saleMethod") === "units"
-      ? (value("unitsCount") * value("averageMonthlyRent")) + value("additionalIncome")
-      : netArea() * value("averageMonthlyRent");
+      ? ((value("unitsCount") + value("otherSaleUnits")) * value("averageMonthlyRent")) + value("additionalIncome")
+      : (netArea() * value("averageMonthlyRent")) + value("additionalIncome");
     monthlyIncome = annualRevenue / 12;
   } else if (state.propertyType === "hospitalityServicedApartments") {
     annualRevenue = (value("unitsCount") * value("averageMonthlyRent") * value("operatingDays") * occupancy) + value("additionalIncome");
@@ -124,28 +125,27 @@ function calculate() {
   const annualMaintenance = rawValue("maintenanceMode") === "percentage"
     ? annualRevenue * percent(value("annualMaintenance"))
     : value("annualMaintenance");
-  const defaultOperating = annualRevenue * defaultOperatingRate();
-  const operatingDetails = (!value("showOperatingDetails") && !value("totalOperatingExpenses"))
-    ? defaultOperating
-    : value("showOperatingDetails")
-    ? value("security")
+  const operatingDetails = rawValue("operatingExpenseMode") === "detailed"
+    ? value("managementOperations")
       + value("cleaning")
-      + value("ownerUtilities")
-      + value("managementOperations")
+      + value("operatingElectricity")
+      + value("operatingWater")
+      + value("security")
       + value("insurance")
-      + value("marketing")
       + value("otherOperatingExpenses")
-    : value("totalOperatingExpenses");
+    : annualRevenue * percent(value("operatingExpensePercentage") || (defaultOperatingRate() * 100));
   const operatingExpenses = annualMaintenance + operatingDetails;
   const noi = annualRevenue - operatingExpenses - annualLandRent;
   const hasFinancing = value("hasFinancing");
-  const debt = hasFinancing ? debtService(totalProjectCost) : { monthlyDebtService: 0, annualDebtService: 0, totalFinancingCost: 0, financingAmount: 0, financingRatio: 0 };
-  const netIncomeAfterFinancing = noi - debt.annualDebtService;
+  const debt = hasFinancing ? debtService(totalProjectCost) : { monthlyDebtService: 0, annualDebtService: 0, totalFinancingCost: 0, financingAmount: 0, financingRatio: 0, financingSchedule: [] };
+  const firstDebtService = firstPayableDebtService(debt);
+  const netIncomeAfterFinancing = noi - firstDebtService;
   const yieldOnCost = totalProjectCost > 0 ? (noi / totalProjectCost) * 100 : 0;
+  const capRate = totalProjectCost > 0 ? (noi / totalProjectCost) * 100 : 0;
   const roi = totalProjectCost > 0 ? (netIncomeAfterFinancing / totalProjectCost) * 100 : 0;
   const paybackPeriod = netIncomeAfterFinancing > 0 ? totalProjectCost / netIncomeAfterFinancing : 0;
-  const dscr = hasFinancing && debt.annualDebtService > 0 ? noi / debt.annualDebtService : null;
-  const breakEvenOccupancy = annualRevenue > 0 ? Math.min(((operatingExpenses + debt.annualDebtService) / annualRevenue) * value("occupancyRate"), 100) : 0;
+  const dscr = hasFinancing && firstDebtService > 0 ? noi / firstDebtService : null;
+  const breakEvenOccupancy = annualRevenue > 0 ? Math.min(((operatingExpenses + firstDebtService) / annualRevenue) * value("occupancyRate"), 100) : 0;
   const rating = yieldOnCost >= 10 ? "ممتاز" : yieldOnCost >= 8 ? "جيد" : yieldOnCost >= 6 ? "متوسط" : "ضعيف";
   let cumulative = -totalProjectCost;
   let paybackYear = null;
@@ -153,12 +153,13 @@ function calculate() {
     const year = index + 1;
     const revenue = annualRevenue * Math.pow(1.025, index);
     const expenses = operatingExpenses * Math.pow(1.018, index);
-    const landRent = annualLandRent * Math.pow(1.018, index);
+    const landRent = annualLandRent * Math.pow(1 + percent(value("annualLandRentEscalation") || 2), index);
     const yearNoi = revenue - expenses - landRent;
-    const netAfterDebt = yearNoi - debt.annualDebtService;
+    const financing = debt.financingSchedule?.[index]?.payment || 0;
+    const netAfterDebt = yearNoi - financing;
     cumulative += netAfterDebt;
     if (!paybackYear && cumulative >= 0) paybackYear = year;
-    return { year, revenue, landRent, expenses, financing: debt.annualDebtService, noi: yearNoi, netAfterDebt, cumulative };
+    return { year, revenue, landRent, expenses, financing, noi: yearNoi, netAfterDebt, cumulative };
   });
   const npv = -totalProjectCost + cashFlows.reduce((sum, flow) => sum + flow.netAfterDebt / Math.pow(1.10, flow.year), 0);
   const irr = calculateIRR([-totalProjectCost, ...cashFlows.map((flow) => flow.netAfterDebt)]);
@@ -183,6 +184,7 @@ function calculate() {
     ...debt,
     netIncomeAfterFinancing,
     yieldOnCost,
+    capRate,
     roi,
     paybackPeriod,
     dscr,
@@ -199,26 +201,58 @@ function debtService(totalProjectCost) {
   const financingMode = rawValue("financingMode") || "amount";
   const principal = financingMode === "ratio" ? totalProjectCost * percent(value("financingRatio")) : value("financingAmount");
   const years = value("termYears");
-  const annualRate = value("annualInterestRate") / 100;
-  const repaymentType = document.querySelector('[name="repaymentType"]').value;
-  if (!principal || !years) return { monthlyDebtService: 0, annualDebtService: 0, totalFinancingCost: 0, financingAmount: 0, financingRatio: 0 };
-  let annualDebtService = 0;
-  let monthlyDebtService = 0;
-  const paymentsPerYear = repaymentType === "quarterly" ? 4 : repaymentType === "semiannual" ? 2 : 1;
-  const periodRate = annualRate / paymentsPerYear;
-  const periods = years * paymentsPerYear;
-  const periodPayment = periodRate > 0
-    ? principal * (periodRate * Math.pow(1 + periodRate, periods)) / (Math.pow(1 + periodRate, periods) - 1)
-    : principal / periods;
-  annualDebtService = periodPayment * paymentsPerYear;
-  monthlyDebtService = annualDebtService / 12;
+  if (!principal || !years) return { monthlyDebtService: 0, annualDebtService: 0, totalFinancingCost: 0, financingAmount: 0, financingRatio: 0, financingSchedule: [] };
+  const schedule = financingSchedule(principal, years);
+  const annualDebtService = firstPayableDebtService({ financingSchedule: schedule });
+  const monthlyDebtService = annualDebtService / 12;
+  const totalFinancingCost = schedule.reduce((sum, item) => sum + item.interest, 0);
   return {
     financingAmount: principal,
     financingRatio: totalProjectCost > 0 ? (principal / totalProjectCost) * 100 : 0,
     monthlyDebtService,
     annualDebtService,
-    totalFinancingCost: Math.max(annualDebtService * years - principal, 0)
+    totalFinancingCost,
+    financingSchedule: schedule
   };
+}
+
+function financingSchedule(principal, years) {
+  const annualRate = value("annualInterestRate") / 100;
+  const repaymentType = rawValue("repaymentType") || "annual";
+  const paymentsPerYear = repaymentType === "quarterly" ? 4 : repaymentType === "semiannual" ? 2 : 1;
+  const graceYears = value("gracePeriod");
+  const fullGraceYears = Math.floor(graceYears);
+  const hasHalfGrace = graceYears % 1 >= 0.5;
+  const repaymentYears = Math.max(years - graceYears, 0.5);
+  const periodRate = annualRate / paymentsPerYear;
+  const periods = Math.max(Math.round(repaymentYears * paymentsPerYear), 1);
+  const periodPayment = periodRate > 0
+    ? principal * (periodRate * Math.pow(1 + periodRate, periods)) / (Math.pow(1 + periodRate, periods) - 1)
+    : principal / periods;
+  let balance = principal;
+  return Array.from({ length: Math.ceil(years) }, (_, index) => {
+    const year = index + 1;
+    let payment = 0;
+    let principalPaid = 0;
+    let interest = 0;
+    const yearPeriods = hasHalfGrace && year === fullGraceYears + 1 ? Math.max(paymentsPerYear / 2, 1) : paymentsPerYear;
+    const inFullGrace = year <= fullGraceYears;
+    if (!inFullGrace && balance > 0) {
+      for (let period = 0; period < yearPeriods && balance > 0; period += 1) {
+        const periodInterest = balance * periodRate;
+        const periodPrincipal = Math.min(Math.max(periodPayment - periodInterest, 0), balance);
+        interest += periodInterest;
+        principalPaid += periodPrincipal;
+        payment += periodInterest + periodPrincipal;
+        balance = Math.max(balance - periodPrincipal, 0);
+      }
+    }
+    return { year, payment, principal: principalPaid, interest, balance };
+  });
+}
+
+function firstPayableDebtService(debt) {
+  return debt.financingSchedule?.find((item) => item.payment > 0)?.payment || debt.annualDebtService || 0;
 }
 
 function defaultOperatingRate() {
@@ -266,19 +300,24 @@ function updatePropertyLabels() {
   document.querySelector('[data-label="averageMonthlyRent"]').textContent = state.transactionType === "sale"
     ? (rawValue("saleMethod") === "units" ? "متوسط سعر بيع الوحدة" : "سعر البيع للمتر")
     : selected[4].replace("الشهري", "السنوي");
-  document.querySelector('[data-label="additionalIncome"]').textContent = selected[5];
+  document.querySelector('[data-label="additionalIncome"]').textContent = state.transactionType === "sale" ? "مبيعات أخرى" : selected[5];
+  document.querySelector('[data-label="additionalIncomeHint"]').textContent = state.transactionType === "sale" ? "(مبيعات أو إيرادات بيع أخرى)" : "(محلات، معارض، خدمات أخرى)";
+  document.querySelector('[data-label="annualRevenueTitle"]').textContent = state.transactionType === "sale" ? "إجمالي المبيعات" : "إجمالي الدخل السنوي";
   document.querySelector('[data-label="totalLandCost"]').textContent = state.mode === "leaseInvestment" ? "تكاليف تأسيس الأرض المستأجرة" : "إجمالي تكلفة تملك الأرض";
   $(".hotel-only").classList.toggle("is-hidden", state.propertyType !== "hospitalityServicedApartments");
   $$(".segment-card").forEach((button) => button.classList.toggle("is-selected", button.dataset.transaction === state.transactionType));
   document.querySelector('[data-transaction="sale"]')?.classList.toggle("is-hidden", state.mode === "leaseInvestment");
   $$(".rent-only").forEach((node) => node.classList.toggle("is-hidden", state.transactionType === "sale"));
   $$(".sale-only").forEach((node) => node.classList.toggle("is-hidden", state.transactionType !== "sale"));
+  $$(".sale-units-only").forEach((node) => node.classList.toggle("is-hidden", state.transactionType !== "sale" || rawValue("saleMethod") !== "units"));
+  $$(".unit-count-field").forEach((node) => node.classList.toggle("is-hidden", state.transactionType === "sale" && rawValue("saleMethod") === "meter"));
+  $$(".operating-details, .operating-percentage").forEach((node) => node.closest(".step")?.classList.toggle("sale-muted", state.transactionType === "sale"));
 }
 
 function syncOutputs() {
   syncVisibility();
   const r = calculate();
-  const moneyKeys = ["landValue", "totalLandCost", "baseConstructionCost", "totalDevelopmentCost", "monthlyIncome", "annualRevenue", "noi", "monthlyDebtService", "annualDebtService", "totalFinancingCost", "netIncomeAfterFinancing"];
+  const moneyKeys = ["landValue", "totalLandCost", "baseConstructionCost", "totalDevelopmentCost", "monthlyIncome", "annualRevenue", "operatingExpenses", "noi", "monthlyDebtService", "annualDebtService", "totalFinancingCost", "netIncomeAfterFinancing"];
   moneyKeys.forEach((key) => {
     const node = document.querySelector(`[data-out="${key}"]`);
     if (node) node.textContent = currency.format(r[key]);
@@ -287,11 +326,14 @@ function syncOutputs() {
   if (dscr) dscr.textContent = r.dscr ? number.format(r.dscr) : "لا يوجد";
   const rating = document.querySelector('[data-out="rating"]');
   if (rating) {
-    rating.textContent = r.rating;
-    rating.parentElement.dataset.rating = r.rating;
+    const smartRating = state.transactionType === "sale" ? saleRating(r) : r.rating;
+    rating.textContent = smartRating;
+    rating.parentElement.dataset.rating = smartRating;
   }
   const ratingMeta = document.querySelector('[data-out="ratingMeta"]');
-  if (ratingMeta) ratingMeta.textContent = `ROI ${number.format(r.roi)}% · الاسترداد ${number.format(r.paybackPeriod)} سنة`;
+  if (ratingMeta) ratingMeta.textContent = state.transactionType === "sale"
+    ? `هامش الربح ${number.format(saleMargin(r))}% · ROI ${number.format(r.roi)}%`
+    : `ROI ${number.format(r.roi)}% · الاسترداد ${number.format(r.paybackPeriod)} سنة`;
   const builtRatio = document.querySelector('[data-out="builtRatio"]');
   if (builtRatio) builtRatio.textContent = value("landArea") > 0 ? `${number.format((value("builtUpArea") / value("landArea")) * 100)}٪` : "0٪";
   const calculatedBuiltArea = document.querySelector('[data-out="calculatedBuiltArea"]');
@@ -328,8 +370,9 @@ function syncVisibility() {
   $(".build-manual-fields")?.classList.toggle("is-hidden", rawValue("builtAreaMode") !== "manual");
   $(".additional-details")?.classList.toggle("is-hidden", rawValue("additionalCostMode") !== "detailed");
   $(".additional-summary")?.classList.toggle("is-hidden", rawValue("additionalCostMode") === "detailed");
-  $(".operating-details")?.classList.toggle("is-hidden", !value("showOperatingDetails"));
-  $(".operating-summary")?.classList.toggle("is-hidden", value("showOperatingDetails"));
+  $(".operating-details")?.classList.toggle("is-hidden", rawValue("operatingExpenseMode") !== "detailed");
+  $(".operating-percentage")?.classList.toggle("is-hidden", rawValue("operatingExpenseMode") !== "percentage");
+  $(".maintenance-note")?.classList.toggle("is-hidden", rawValue("maintenanceMode") !== "percentage");
   $(".finance-fields")?.classList.toggle("is-hidden", !value("hasFinancing"));
   $(".finance-empty")?.classList.toggle("is-hidden", value("hasFinancing"));
 }
@@ -379,7 +422,7 @@ function buildingMetrics() {
 function renderKpis(r) {
   const grid = $("#kpiGrid");
   if (!grid) return;
-  const items = [
+  const items = state.transactionType === "sale" ? saleKpiItems(r) : [
     ["قيمة الأرض", "Land Value", currency.format(r.landValue), state.mode === "purchase" ? "قيمة الأرض حسب المساحة وسعر المتر" : "لا تحتسب كأصل مملوك في أرض الاستثمار", true],
     ["تكلفة البناء والتطوير", "Development Cost", currency.format(r.totalDevelopmentCost), "تكلفة البناء والتكاليف الإضافية والاحتياطي", false],
     ["إجمالي تكلفة المشروع", "Total Project Cost", currency.format(r.totalProjectCost), "التكلفة الكلية للمشروع", true],
@@ -396,6 +439,41 @@ function renderKpis(r) {
     ["نقطة التعادل", "Break-even", `${number.format(r.breakEvenOccupancy)}%`, "نسبة إشغال تقريبية للتعادل"]
   ];
   grid.innerHTML = items.map(([label, en, val, hint, highlight]) => `<div class="kpi-card ${highlight || label === "NOI" ? "is-prime" : ""}"><span>${label}<small>(${en})</small></span><strong>${formatKpiMoney(val)}</strong><em>${hint}</em></div>`).join("");
+}
+
+function saleKpiItems(r) {
+  const profit = saleProfit(r);
+  const margin = saleMargin(r);
+  return [
+    ["إجمالي المبيعات المتوقعة", "Expected Sales", currency.format(r.annualRevenue), "قيمة البيع المتوقعة حسب طريقة البيع", true],
+    ["صافي الربح المتوقع", "Expected Net Profit", currency.format(profit), "إجمالي المبيعات بعد خصم تكلفة المشروع والتمويل", true],
+    ["هامش الربح", "Profit Margin", `${number.format(margin)}%`, "صافي الربح ÷ إجمالي المبيعات", true],
+    ["ROI", "Return on Investment", `${number.format(r.roi)}%`, "نسبة العائد على الاستثمار", false],
+    ["إجمالي تكلفة المشروع", "Total Project Cost", currency.format(r.totalProjectCost), "التكلفة الكلية للتطوير", true],
+    ["قيمة الأرض", "Land Value", currency.format(r.landValue), "تكلفة الأرض ضمن المشروع", false],
+    ["تكلفة التطوير", "Development Cost", currency.format(r.totalDevelopmentCost), "تكلفة البناء والتكاليف الإضافية والاحتياطي", false],
+    ["فترة الاسترداد", "Payback", "يتم الاسترداد عند اكتمال البيع", "لا توجد تدفقات تشغيلية دورية في نموذج البيع", false],
+    ["IRR", "Internal Rate of Return", `${number.format(r.irr)}%`, "معدل العائد الداخلي المتوقع", false],
+    ["NPV", "Net Present Value", currency.format(r.npv), "صافي القيمة الحالية", false]
+  ];
+}
+
+function saleProfit(r) {
+  return r.annualRevenue - r.totalProjectCost - (r.annualDebtService || 0);
+}
+
+function saleMargin(r) {
+  return r.annualRevenue > 0 ? (saleProfit(r) / r.annualRevenue) * 100 : 0;
+}
+
+function saleRating(r) {
+  const margin = saleMargin(r);
+  const roi = r.roi;
+  const spread = r.annualRevenue - r.totalProjectCost;
+  if (margin >= 25 && roi >= 20 && spread > 0) return "ممتاز";
+  if (margin >= 18 && roi >= 12 && spread > 0) return "جيد";
+  if (margin >= 10 && roi >= 6) return "متوسط";
+  return "ضعيف";
 }
 
 function formatKpiMoney(value) {
@@ -459,15 +537,14 @@ function getProjectYears() {
 
 function displayCashFlows(r) {
   const years = getProjectYears();
-  const annualDebtService = r.annualDebtService || 0;
   const annualLandRent = r.annualLandRent || 0;
-  const graceYears = value("gracePeriod");
+  const landRentEscalation = percent(value("annualLandRentEscalation") || 2);
   return Array.from({ length: years }, (_, index) => {
     const year = index + 1;
-    const financing = year <= graceYears ? 0 : annualDebtService;
+    const financing = r.financingSchedule?.[index]?.payment || 0;
     const revenue = r.annualRevenue * Math.pow(1.025, index);
     const expenses = r.operatingExpenses * Math.pow(1.018, index);
-    const landRent = annualLandRent * Math.pow(1.018, index);
+    const landRent = annualLandRent * Math.pow(1 + landRentEscalation, index);
     const noi = revenue - expenses - landRent;
     const netAfterDebt = noi - financing;
     return { year, revenue, landRent, expenses, financing, noi, netAfterDebt, cumulative: 0 };
@@ -644,11 +721,15 @@ function renderCharts(r) {
   const costItems = [
     { label: "الأرض", value: state.mode === "purchase" ? r.landValue : 0 },
     { label: "البناء", value: r.baseConstructionCost },
-    { label: "الرسوم", value: r.brokerageFees + (state.mode === "purchase" ? r.transactionTax : 0) + value("otherLandFees") },
-    { label: "التكاليف الأخرى", value: r.additionalCosts + r.contingencyAmount }
+    { label: state.transactionType === "sale" ? "التكاليف الإضافية" : "الرسوم", value: state.transactionType === "sale" ? r.additionalCosts : r.brokerageFees + (state.mode === "purchase" ? r.transactionTax : 0) + value("otherLandFees") },
+    { label: state.transactionType === "sale" ? "الاحتياطي" : "التكاليف الأخرى", value: state.transactionType === "sale" ? r.contingencyAmount : r.additionalCosts + r.contingencyAmount }
   ].filter((item) => item.value > 0);
   drawPieEnhanced($("#pieChart"), costItems);
-  drawBar($("#barChart"), [
+  drawBar($("#barChart"), state.transactionType === "sale" ? [
+    { label: "إجمالي المبيعات", value: r.annualRevenue },
+    { label: "إجمالي التكاليف", value: r.totalProjectCost },
+    { label: "صافي الربح", value: saleProfit(r) }
+  ] : [
     { label: "الإيراد", value: r.annualRevenue },
     { label: "المصاريف", value: r.operatingExpenses },
     { label: "NOI", value: r.noi },
@@ -894,6 +975,18 @@ function buildReport() {
   const reportPieLegend = chartMeta.pie.map((item) => `<div>${item.label}: ${currency.format(item.value)} · ${number.format((item.value / item.total) * 100)}%</div>`).join("");
   const reportShowLandRent = state.mode === "leaseInvestment";
   const reportIncomeLabel = state.transactionType === "sale" ? "البيع" : "الدخل";
+  const reportRating = state.transactionType === "sale" ? saleRating(r) : r.rating;
+  const row = (label, val) => `<tr><td>${label}</td><td>${stripSAR(val)}</td></tr>`;
+  const table = (title, rows) => `<section class="report-section"><h2>${title}</h2><table>${rows.join("")}</table></section>`;
+  const financingRows = (r.financingSchedule || []).map((item) => `
+    <tr>
+      <td>${item.year}</td>
+      <td>${tableMoney(item.payment)}</td>
+      <td>${tableMoney(item.principal)}</td>
+      <td>${tableMoney(item.interest)}</td>
+      <td>${tableMoney(item.balance)}</td>
+    </tr>
+  `).join("");
   const costDistributionRows = [
     ["قيمة الأرض", state.mode === "purchase" ? r.landValue : 0],
     ["تكلفة البناء والتطوير", r.totalDevelopmentCost],
@@ -902,8 +995,6 @@ function buildReport() {
     ["التمويل", r.annualDebtService],
     ["الاحتياطي والمخاطر", r.contingencyAmount]
   ].map(([label, amount]) => row(label, `${tableMoney(amount)} · ${number.format(r.totalProjectCost ? (amount / r.totalProjectCost) * 100 : 0)}%`));
-  const row = (label, val) => `<tr><td>${label}</td><td>${stripSAR(val)}</td></tr>`;
-  const table = (title, rows) => `<section class="report-section"><h2>${title}</h2><table>${rows.join("")}</table></section>`;
   $("#printReport").innerHTML = `
     <article class="report-page report-cover">
       <div class="report-brand">
@@ -920,15 +1011,15 @@ function buildReport() {
         <h2>ملخص تنفيذي</h2>
         <div class="report-summary-grid">
           <div class="report-summary-card"><span>إجمالي التكلفة</span><strong>${currency.format(r.totalProjectCost)}</strong></div>
-          <div class="report-summary-card"><span>الإيراد السنوي</span><strong>${currency.format(r.annualRevenue)}</strong></div>
-          <div class="report-summary-card"><span>صافي الدخل</span><strong>${currency.format(r.noi)}</strong></div>
+        <div class="report-summary-card"><span>${state.transactionType === "sale" ? "إجمالي المبيعات" : "الإيراد السنوي"}</span><strong>${currency.format(r.annualRevenue)}</strong></div>
+        <div class="report-summary-card"><span>${state.transactionType === "sale" ? "صافي الربح" : "صافي الدخل"}</span><strong>${currency.format(state.transactionType === "sale" ? saleProfit(r) : r.noi)}</strong></div>
         </div>
       </section>
       <div class="report-grid">
-        <div class="report-kpi">Yield on Cost<strong>${number.format(r.yieldOnCost)}%</strong></div>
+        <div class="report-kpi">${state.transactionType === "sale" ? "هامش الربح" : "Yield on Cost"}<strong>${number.format(state.transactionType === "sale" ? saleMargin(r) : r.yieldOnCost)}%</strong></div>
         <div class="report-kpi">ROI<strong>${number.format(r.roi)}%</strong></div>
         <div class="report-kpi">NPV<strong>${currency.format(r.npv)}</strong></div>
-        <div class="report-kpi">التقييم<strong>${r.rating}</strong></div>
+        <div class="report-kpi">التقييم<strong>${reportRating}</strong></div>
       </div>
       <div class="report-footer">Fares Alharbi</div>
     </article>
@@ -941,7 +1032,7 @@ function buildReport() {
         row("مساحة الأرض", `${number.format(value("landArea"))} م²`),
         row("إيجار الأرض السنوي", currency.format(r.annualLandRent)),
         row("مسطح البناء", `${number.format(value("builtUpArea"))} م²`),
-        row("نسبة الإشغال", `${number.format(value("occupancyRate"))}٪`)
+        ...(state.transactionType === "sale" ? [] : [row("نسبة الإشغال", `${number.format(value("occupancyRate"))}٪`)])
       ])}
       ${table("تكاليف الأرض", [
         row("إجمالي قيمة الأرض", state.mode === "purchase" ? currency.format(r.landValue) : "لا تحتسب - أرض مستأجرة"),
@@ -963,14 +1054,20 @@ function buildReport() {
     <article class="report-page">
       <img class="report-watermark" src="/assets/logo.svg" alt="">
       <div class="report-footer">Fares Alharbi</div>
-      ${table("الإيرادات", [
+      ${table(state.transactionType === "sale" ? "المبيعات" : "الإيرادات", [
         row(selected[3], number.format(value("unitsCount"))),
-        row(selected[4], currency.format(value("averageMonthlyRent"))),
-        row("الدخل الإضافي", currency.format(value("additionalIncome"))),
-        row("إجمالي الدخل الشهري", currency.format(r.monthlyIncome)),
-        row("إجمالي الدخل السنوي", currency.format(r.annualRevenue))
+        row(state.transactionType === "sale" ? (rawValue("saleMethod") === "units" ? "متوسط سعر بيع الوحدة" : "سعر البيع للمتر") : selected[4], currency.format(value("averageMonthlyRent"))),
+        row(state.transactionType === "sale" ? "مبيعات أخرى" : "الدخل الإضافي", currency.format(value("additionalIncome"))),
+        ...(state.transactionType === "sale" ? [
+          row("إجمالي المبيعات", currency.format(r.annualRevenue)),
+          row("صافي الربح", currency.format(saleProfit(r))),
+          row("هامش الربح", `${number.format(saleMargin(r))}%`)
+        ] : [
+          row("إجمالي الدخل الشهري", currency.format(r.monthlyIncome)),
+          row("إجمالي الدخل السنوي", currency.format(r.annualRevenue))
+        ])
       ])}
-      ${table("المصاريف التشغيلية", [
+      ${state.transactionType === "sale" ? "" : table("المصاريف التشغيلية", [
         row("الصيانة السنوية", currency.format(r.annualMaintenance)),
         row("إجمالي المصاريف التشغيلية", currency.format(r.operatingExpenses)),
         row("NOI", currency.format(r.noi))
@@ -984,7 +1081,17 @@ function buildReport() {
         row("إجمالي تكلفة التمويل", currency.format(r.totalFinancingCost)),
         row("DSCR", r.dscr ? number.format(r.dscr) : "غير متاح")
       ]) : ""}
-      ${table("النتائج والمؤشرات", [
+      ${table("النتائج والمؤشرات", state.transactionType === "sale" ? [
+        row("إجمالي المبيعات", currency.format(r.annualRevenue)),
+        row("إجمالي التكلفة", currency.format(r.totalProjectCost)),
+        row("صافي الربح", currency.format(saleProfit(r))),
+        row("هامش الربح", `${number.format(saleMargin(r))}%`),
+        row("ROI", `${number.format(r.roi)}٪`),
+        row("IRR", `${number.format(r.irr)}٪`),
+        row("NPV", currency.format(r.npv)),
+        row("فترة الاسترداد", "يتم الاسترداد عند اكتمال البيع"),
+        row("التقييم المختصر", reportRating)
+      ] : [
         row("إجمالي تكلفة المشروع", currency.format(r.totalProjectCost)),
         row("صافي الدخل بعد التمويل", currency.format(r.netIncomeAfterFinancing)),
         row("Yield on Cost", `${number.format(r.yieldOnCost)}٪`),
@@ -1000,7 +1107,7 @@ function buildReport() {
     <article class="report-page">
       <img class="report-watermark" src="/assets/logo.svg" alt="">
       <div class="report-footer">Fares Alharbi</div>
-      <section class="report-section">
+      ${state.transactionType === "sale" ? "" : `<section class="report-section">
         <h2>التقرير المالي</h2>
         <table>
           <tr><td>السنة</td><td>${reportIncomeLabel}</td>${reportShowLandRent ? "<td>إيجار الأرض</td>" : ""}<td>المصاريف</td><td>التمويل</td><td>صافي الدخل</td><td>التراكمي</td></tr>
@@ -1026,7 +1133,7 @@ function buildReport() {
           </tr>
         </table>
         <p class="report-note">${reportPaybackYear ? `تم استرداد رأس المال في السنة ${reportPaybackYear}` : "لم يتم الاسترداد خلال مدة المشروع"}</p>
-      </section>
+      </section>`}
       ${table("توزيع التكاليف", costDistributionRows)}
       <section class="report-section">
         <h2>الرسوم البيانية</h2>
@@ -1036,11 +1143,21 @@ function buildReport() {
           <figure class="wide"><img src="${lineImage}" alt="التدفقات النقدية حسب مدة المشروع"><figcaption>التدفقات النقدية حسب مدة المشروع</figcaption></figure>
         </div>
       </section>
-      <section class="report-section"><h2>التوصية المختصرة</h2><p>${recommendation(r.rating)}</p></section>
+      <section class="report-section"><h2>التوصية المختصرة</h2><p>${recommendation(reportRating)}</p></section>
       <section class="report-section"><h2>المخاطر</h2><p>تشمل المخاطر المحتملة تغير تكلفة البناء، انخفاض الإشغال، ارتفاع مصاريف التشغيل، تغير شروط التمويل، ومخاطر تجديد عقد الأرض المستأجرة في حال كان المشروع قائماً على أرض غير مملوكة.</p></section>
       <p class="report-note">هذا التقرير تقديري ولا يغني عن الدراسة المالية والهندسية التفصيلية.</p>
     </article>
   `;
+  if (value("hasFinancing")) {
+    const financePage = $("#printReport .report-page:nth-child(3)");
+    financePage?.insertAdjacentHTML("beforeend", `<section class="report-section">
+      <h2>جدول التمويل السنوي</h2>
+      <table>
+        <tr><td>السنة</td><td>القسط السنوي</td><td>أصل الدين المسدد</td><td>الفائدة السنوية</td><td>الرصيد المتبقي</td></tr>
+        ${financingRows}
+      </table>
+    </section>`);
+  }
 }
 
 async function exportPDF() {
