@@ -27,6 +27,8 @@ const state = {
 };
 
 const storageKey = "realEstateInvestmentCalculator:lastProject";
+const projectsStorageKey = "realEstateInvestmentCalculator:projects";
+let activeProjectId = null;
 
 const englishNumber = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 2
@@ -168,14 +170,15 @@ function calculate() {
     const year = index + 1;
     const revenue = annualRevenue * Math.pow(1.025, index);
     const expenses = operatingExpenses * Math.pow(1.018, index);
-    const landRent = annualLandRent * Math.pow(1 + percent(value("annualLandRentEscalation")), index);
+    const landRentInfo = landRentForYear(annualLandRent, year);
+    const landRent = landRentInfo.amount;
     const contractFees = index === 0 ? oneTimeContractFees : 0;
     const yearNoi = revenue - expenses - landRent;
     const financing = debt.financingSchedule?.[index]?.payment || 0;
     const netAfterDebt = yearNoi - financing - contractFees;
     cumulative += netAfterDebt;
     if (!paybackYear && cumulative >= 0) paybackYear = year;
-    return { year, revenue, landRent, expenses, contractFees, financing, noi: yearNoi, netAfterDebt, cumulative };
+    return { year, revenue, landRent, landRentGrace: landRentInfo.isGrace, expenses, contractFees, financing, noi: yearNoi, netAfterDebt, cumulative };
   });
   if (!paybackYear && cashFlows.find((flow) => flow.cumulative >= 0)) paybackYear = cashFlows.find((flow) => flow.cumulative >= 0).year;
   const npv = -paybackBase + cashFlows.reduce((sum, flow) => sum + flow.netAfterDebt / Math.pow(1.10, flow.year), 0);
@@ -215,6 +218,19 @@ function calculate() {
     irr,
     paybackYear
   };
+}
+
+function landRentForYear(baseAnnualRent, year) {
+  if (!baseAnnualRent || state.mode !== "leaseInvestment") return { amount: 0, isGrace: false };
+  const graceYears = value("landRentGracePeriod");
+  const yearStart = year - 1;
+  const yearEnd = year;
+  if (yearEnd <= graceYears) return { amount: 0, isGrace: true };
+  const payableFraction = Math.min(Math.max(yearEnd - Math.max(yearStart, graceYears), 0), 1);
+  if (payableFraction <= 0) return { amount: 0, isGrace: true };
+  const completedPayableYears = Math.max(0, Math.floor(yearStart - graceYears));
+  const amount = baseAnnualRent * Math.pow(1 + percent(value("annualLandRentEscalation")), completedPayableYears) * payableFraction;
+  return { amount, isGrace: payableFraction < 1 && yearStart < graceYears };
 }
 
 function debtService(totalProjectCost) {
@@ -533,7 +549,7 @@ function renderCashflowTable(r) {
         <tr class="${paybackYear === flow.year ? "is-payback" : ""}">
           <td><strong>${flow.year}${paybackYear === flow.year ? " ✔" : ""}</strong></td>
           <td>${tableMoney(flow.revenue)}</td>
-          ${showLandRent ? `<td>${tableMoney(flow.landRent)}</td>` : ""}
+          ${showLandRent ? `<td>${flow.landRentGrace && !flow.landRent ? "فترة سماحية – لا يوجد إيجار أرض" : tableMoney(flow.landRent)}</td>` : ""}
           <td>${tableMoney(flow.expenses + (flow.contractFees || 0))}</td>
           <td>${tableMoney(flow.financing)}</td>
           <td>${tableMoney(flow.netAfterDebt)}</td>
@@ -573,17 +589,17 @@ function displayCashFlows(r) {
   if (state.transactionType === "sale") return r.cashFlows || [];
   const years = getProjectYears();
   const annualLandRent = r.annualLandRent || 0;
-  const landRentEscalation = percent(value("annualLandRentEscalation"));
   return Array.from({ length: years }, (_, index) => {
     const year = index + 1;
     const financing = r.financingSchedule?.[index]?.payment || 0;
     const revenue = r.annualRevenue * Math.pow(1.025, index);
     const expenses = r.operatingExpenses * Math.pow(1.018, index);
-    const landRent = annualLandRent * Math.pow(1 + landRentEscalation, index);
+    const landRentInfo = landRentForYear(annualLandRent, year);
+    const landRent = landRentInfo.amount;
     const contractFees = index === 0 ? (r.oneTimeContractFees || 0) : 0;
     const noi = revenue - expenses - landRent;
     const netAfterDebt = noi - financing - contractFees;
-    return { year, revenue, landRent, expenses, contractFees, financing, noi, netAfterDebt, cumulative: 0 };
+    return { year, revenue, landRent, landRentGrace: landRentInfo.isGrace, expenses, contractFees, financing, noi, netAfterDebt, cumulative: 0 };
   }).reduce((flows, flow) => {
     const previous = flows.length ? flows[flows.length - 1].cumulative : -recoveryBase(r);
     flows.push({ ...flow, cumulative: previous + flow.netAfterDebt });
@@ -758,6 +774,7 @@ function roundRect(ctx, x, y, w, h, r) {
 }
 
 function renderCharts(r) {
+  const scenarios = scenarioValues(r);
   const costItems = [
     { label: "الأرض", value: state.mode === "purchase" ? r.landValue : 0 },
     { label: "البناء", value: r.baseConstructionCost },
@@ -767,9 +784,9 @@ function renderCharts(r) {
   drawPieEnhanced($("#pieChart"), costItems);
   drawBar($("#barChart"), state.transactionType === "sale" ? [
     { label: "التكلفة", value: r.totalProjectCost },
-    { label: "متشائم", value: r.annualRevenue * 0.85 },
+    { label: "متشائم", value: scenarios.pessimisticProfit },
     { label: "أساسي", value: r.annualRevenue },
-    { label: "متفائل", value: r.annualRevenue * 1.15 },
+    { label: "متفائل", value: scenarios.optimisticProfit },
     { label: "الربح", value: saleProfit(r) }
   ] : [
     { label: "الإيراد", value: r.annualRevenue },
@@ -778,6 +795,21 @@ function renderCharts(r) {
     { label: "بعد التمويل", value: r.netIncomeAfterFinancing }
   ]);
   drawLineEnhanced($("#lineChart"), displayCashFlows(r));
+}
+
+function scenarioValues(r) {
+  const pessimisticRevenue = r.annualRevenue * (1 - percent(value("scenarioPessimisticRevenueDrop")));
+  const pessimisticCost = r.totalProjectCost * (1 + percent(value("scenarioPessimisticCostIncrease")));
+  const optimisticRevenue = r.annualRevenue * (1 + percent(value("scenarioOptimisticRevenueIncrease")));
+  const optimisticCost = r.totalProjectCost * (1 - percent(value("scenarioOptimisticCostDecrease")));
+  return {
+    pessimisticRevenue,
+    pessimisticCost,
+    optimisticRevenue,
+    optimisticCost,
+    pessimisticProfit: pessimisticRevenue - pessimisticCost,
+    optimisticProfit: optimisticRevenue - optimisticCost
+  };
 }
 
 function drawPieEnhanced(canvas, items) {
@@ -965,6 +997,18 @@ function lineLegendLabel(item) {
   return "استرداد التطوير التراكمي";
 }
 
+function landRentGraceLabel() {
+  const labels = {
+    "0": "بدون",
+    "0.5": "6 شهور",
+    "1": "سنة",
+    "1.5": "سنة ونصف",
+    "2": "سنتين",
+    "2.5": "سنتين ونصف"
+  };
+  return labels[rawValue("landRentGracePeriod") || "0"] || "بدون";
+}
+
 function tooltipNode() {
   let node = document.querySelector(".chart-tooltip");
   if (!node) {
@@ -1060,7 +1104,7 @@ function buildReport() {
     <article class="report-page report-cover">
       <div class="report-brand">
         <div class="report-brand-title">شركة بداية الطريق العقارية<br>Start Road Real Estate Company</div>
-        <img class="report-logo" src="/assets/logo.svg" alt="بداية الطريق العقارية">
+        <img class="report-logo" src="/assets/company-logo.jpeg" alt="بداية الطريق العقارية">
       </div>
       <h1>تقرير جدوى الاستثمار العقاري</h1>
       <div class="report-meta-grid">
@@ -1089,7 +1133,7 @@ function buildReport() {
       <div class="report-footer">Fares Alharbi</div>
     </article>
     <article class="report-page">
-      <img class="report-watermark" src="/assets/logo.svg" alt="">
+      <img class="report-watermark" src="/assets/app-icon.jpeg" alt="">
       <div class="report-footer">Fares Alharbi</div>
       ${table("المدخلات الأساسية", [
         row("نوع العملية", state.mode === "purchase" ? "شراء عقار" : "استثمار على أرض مستأجرة"),
@@ -1097,6 +1141,8 @@ function buildReport() {
         row("مساحة الأرض", `${number.format(value("landArea"))} م²`),
         row("سعر إيجار المتر السنوي", currency.format(r.annualLandRentPerMeter)),
         row("إجمالي إيجار الأرض السنوي", currency.format(r.annualLandRent)),
+        row("فترة سماح إيجار الأرض", state.mode === "leaseInvestment" ? landRentGraceLabel() : "لا ينطبق"),
+        row("زيادة إيجار الأرض السنوية", state.mode === "leaseInvestment" ? `${number.format(value("annualLandRentEscalation"))}%` : "لا ينطبق"),
         row("مسطح البناء", `${number.format(value("builtUpArea"))} م²`),
         ...(state.transactionType === "sale" ? [] : [row("نسبة الإشغال", `${number.format(value("occupancyRate"))}٪`)])
       ])}
@@ -1118,7 +1164,7 @@ function buildReport() {
       ])}
     </article>
     <article class="report-page">
-      <img class="report-watermark" src="/assets/logo.svg" alt="">
+      <img class="report-watermark" src="/assets/app-icon.jpeg" alt="">
       <div class="report-footer">Fares Alharbi</div>
       ${table(state.transactionType === "sale" ? "المبيعات" : "الإيرادات", [
         row(selected[3], number.format(value("unitsCount"))),
@@ -1171,7 +1217,7 @@ function buildReport() {
       ])}
     </article>
     <article class="report-page">
-      <img class="report-watermark" src="/assets/logo.svg" alt="">
+      <img class="report-watermark" src="/assets/app-icon.jpeg" alt="">
       <div class="report-footer">Fares Alharbi</div>
       ${state.transactionType === "sale" ? "" : `<section class="report-section">
         <h2>التقرير المالي</h2>
@@ -1181,7 +1227,7 @@ function buildReport() {
             <tr class="${reportPaybackYear === flow.year ? "is-payback" : ""}">
               <td>${flow.year}${reportPaybackYear === flow.year ? " ✔" : ""}</td>
               <td>${tableMoney(flow.revenue)}</td>
-              ${reportShowLandRent ? `<td>${tableMoney(flow.landRent)}</td>` : ""}
+              ${reportShowLandRent ? `<td>${flow.landRentGrace && !flow.landRent ? "فترة سماحية – لا يوجد إيجار أرض" : tableMoney(flow.landRent)}</td>` : ""}
               <td>${tableMoney(flow.expenses + (flow.contractFees || 0))}</td>
               <td>${tableMoney(flow.financing)}</td>
               <td>${tableMoney(flow.netAfterDebt)}</td>
@@ -1203,6 +1249,7 @@ function buildReport() {
       ${table("توزيع التكاليف", costDistributionRows)}
       <section class="report-section">
         <h2>الرسوم البيانية</h2>
+        <p class="report-note">السيناريو الأساسي يعتمد على المدخلات الحالية، المتشائم يفترض انخفاض الإيرادات وارتفاع التكاليف، والمتفائل يفترض ارتفاع الإيرادات وتحسن التكاليف.</p>
         <div class="report-charts">
           <figure><img src="${pieImage}" alt="توزيع تكلفة المشروع"><figcaption>توزيع تكلفة المشروع</figcaption><div class="report-chart-legend">${reportPieLegend}</div></figure>
           <figure><img src="${barImage}" alt="مقارنة الدخل والمصاريف"><figcaption>مقارنة الدخل والمصاريف</figcaption></figure>
@@ -1279,6 +1326,8 @@ function collectProject() {
     fields[field.name] = field.type === "checkbox" ? field.checked : field.value;
   });
   return {
+    id: activeProjectId,
+    name: document.querySelector('[name="projectName"]')?.value || "",
     mode: state.mode,
     transactionType: state.transactionType,
     propertyType: state.propertyType,
@@ -1289,27 +1338,51 @@ function collectProject() {
   };
 }
 
-function saveProject() {
-  localStorage.setItem(storageKey, JSON.stringify(collectProject()));
+function savedProjects() {
+  try {
+    return JSON.parse(localStorage.getItem(projectsStorageKey) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function writeSavedProjects(projects) {
+  localStorage.setItem(projectsStorageKey, JSON.stringify(projects));
+  renderSavedProjects();
+}
+
+function saveProject(options = {}) {
+  const project = collectProject();
+  localStorage.setItem(storageKey, JSON.stringify(project));
+  if (options.named) {
+    const existing = savedProjects();
+    const current = activeProjectId ? existing.find((item) => item.id === activeProjectId) : null;
+    const name = options.name || current?.name || window.prompt("اكتب اسم المشروع", current?.name || "مشروع عقاري");
+    if (!name) return null;
+    project.id = activeProjectId || `project-${Date.now()}`;
+    project.name = name;
+    project.updatedAt = new Date().toISOString();
+    activeProjectId = project.id;
+    const next = existing.filter((item) => item.id !== project.id);
+    next.unshift(project);
+    writeSavedProjects(next);
+  }
   const saveButton = document.querySelector("[data-save-project]");
-  if (saveButton) {
+  if (saveButton && options.named) {
     const oldText = saveButton.textContent;
     saveButton.textContent = "تم حفظ المشروع";
     setTimeout(() => { saveButton.textContent = oldText; }, 1600);
   }
+  return project;
 }
 
-function loadProject() {
-  const saved = localStorage.getItem(storageKey);
-  if (!saved) {
-    $("#errorMessage").textContent = "لا يوجد مشروع محفوظ على هذا المتصفح.";
-    $("#errorMessage").classList.remove("is-hidden");
-    return false;
-  }
-  const project = JSON.parse(saved);
+function applyProject(project) {
+  activeProjectId = project.id || null;
+  localStorage.setItem(storageKey, JSON.stringify(project));
   state.mode = project.mode || "purchase";
   state.propertyType = project.propertyType || "residentialBuilding";
   state.transactionType = project.transactionType || "rent";
+  document.getElementById("calculatorForm").reset();
   Object.entries(project.fields || {}).forEach(([name, savedValue]) => {
     const field = document.querySelector(`[name="${name}"]`);
     if (!field) return;
@@ -1323,7 +1396,39 @@ function loadProject() {
   $("#splash").classList.add("is-hidden");
   $("#wizard").classList.remove("is-hidden");
   goToStep(Math.min(project.step || 0, steps.length - 1));
+}
+
+function loadProject(projectId = null) {
+  const saved = projectId
+    ? JSON.stringify(savedProjects().find((project) => project.id === projectId))
+    : localStorage.getItem(storageKey);
+  if (!saved || saved === "undefined") {
+    $("#errorMessage").textContent = "لا يوجد مشروع محفوظ على هذا المتصفح.";
+    $("#errorMessage").classList.remove("is-hidden");
+    return false;
+  }
+  const project = JSON.parse(saved);
+  applyProject(project);
   return true;
+}
+
+function renderSavedProjects() {
+  const list = $("#savedProjectsList");
+  if (!list) return;
+  const projects = savedProjects();
+  list.innerHTML = projects.length ? projects.map((project) => `
+    <article class="saved-project-card">
+      <div>
+        <strong>${project.name || "مشروع بدون اسم"}</strong>
+        <span>${project.mode === "leaseInvestment" ? "استثمار أرض مستأجرة" : "شراء عقار"} · ${new Date(project.updatedAt || project.savedAt).toLocaleDateString("en-US")}</span>
+      </div>
+      <div class="project-actions">
+        <button type="button" data-open-project="${project.id}">فتح</button>
+        <button type="button" data-copy-project="${project.id}">نسخ</button>
+        <button type="button" data-delete-project="${project.id}">حذف</button>
+      </div>
+    </article>
+  `).join("") : `<p class="muted">لا توجد مشاريع محفوظة بعد.</p>`;
 }
 
 function resetAll() {
@@ -1335,6 +1440,49 @@ function resetAll() {
   renderPropertyTypes();
   updatePropertyLabels();
   goToStep(0);
+}
+
+function hasUserData() {
+  return $$("input").some((field) => field.type === "checkbox" ? field.checked : Boolean(field.value));
+}
+
+function showHome() {
+  $("#wizard").classList.add("is-hidden");
+  $("#splash").classList.remove("is-hidden");
+  renderSavedProjects();
+}
+
+function confirmReturnHome() {
+  if (!hasUserData()) {
+    showHome();
+    return;
+  }
+  const overlay = document.createElement("div");
+  overlay.className = "return-modal";
+  overlay.innerHTML = `
+    <div class="return-dialog">
+      <h3>هل ترغب في حفظ المشروع قبل العودة للبداية؟</h3>
+      <p>يمكنك حفظ المشروع باسم والرجوع إليه لاحقاً من الصفحة الرئيسية.</p>
+      <button type="button" data-return-save>حفظ والعودة</button>
+      <button type="button" data-return-nosave>العودة بدون حفظ</button>
+      <button type="button" data-return-cancel>إلغاء</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.addEventListener("click", (event) => {
+    if (event.target.matches("[data-return-save]")) {
+      const saved = saveProject({ named: true });
+      if (saved) {
+        overlay.remove();
+        showHome();
+      }
+    }
+    if (event.target.matches("[data-return-nosave]")) {
+      overlay.remove();
+      showHome();
+    }
+    if (event.target.matches("[data-return-cancel]") || event.target === overlay) overlay.remove();
+  });
 }
 
 document.addEventListener("input", (event) => {
@@ -1382,6 +1530,20 @@ document.addEventListener("click", (event) => {
   if (event.target.matches("[data-load-project]")) {
     loadProject();
   }
+  const openProject = event.target.closest("[data-open-project]");
+  if (openProject) loadProject(openProject.dataset.openProject);
+  const deleteProject = event.target.closest("[data-delete-project]");
+  if (deleteProject && window.confirm("حذف المشروع المحفوظ؟")) {
+    writeSavedProjects(savedProjects().filter((project) => project.id !== deleteProject.dataset.deleteProject));
+  }
+  const copyProject = event.target.closest("[data-copy-project]");
+  if (copyProject) {
+    const source = savedProjects().find((project) => project.id === copyProject.dataset.copyProject);
+    if (source) {
+      const clone = { ...source, id: `project-${Date.now()}`, name: `${source.name || "مشروع"} - نسخة`, updatedAt: new Date().toISOString() };
+      writeSavedProjects([clone, ...savedProjects()]);
+    }
+  }
   if (event.target.matches("[data-next]")) {
     if (state.step === steps.length - 1) {
       exportPDF();
@@ -1390,9 +1552,10 @@ document.addEventListener("click", (event) => {
       if (state.step === steps.length - 1) saveProject();
     }
   }
-  if (event.target.matches("[data-prev]")) goToStep(state.transactionType === "sale" && state.step === 5 ? 3 : state.step - 1);
+  if (event.target.matches("[data-prev]")) goToStep(state.step - 1);
   if (event.target.matches("[data-reset]")) resetAll();
-  if (event.target.matches("[data-save-project]")) saveProject();
+  if (event.target.matches("[data-home]")) confirmReturnHome();
+  if (event.target.matches("[data-save-project]")) saveProject({ named: true });
   if (event.target.matches("[data-export]")) {
     exportPDF();
   }
@@ -1401,3 +1564,7 @@ document.addEventListener("click", (event) => {
 renderPropertyTypes();
 updatePropertyLabels();
 syncOutputs();
+renderSavedProjects();
+setTimeout(() => {
+  document.getElementById("startupSplash")?.classList.add("is-hidden");
+}, 1800);

@@ -5,15 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#11110f" />
     <title>حاسبة الاستثمار العقاري</title>
-    <link rel="icon" href="/assets/logo.svg" type="image/svg+xml" />
+    <link rel="icon" href="/assets/app-icon.jpeg" type="image/jpeg" />
     <link rel="stylesheet" href="/styles.css" />
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   </head>
   <body>
+    <section id="startupSplash" class="startup-splash">
+      <img src="/assets/app-icon.jpeg" alt="Start Road Real Estate" />
+      <strong>Start Road Real Estate</strong>
+    </section>
     <main class="app-shell">
       <section id="splash" class="splash">
-        <img class="logo-mark" src="/assets/logo.svg" alt="بداية الطريق العقارية" />
+        <img class="home-watermark" src="/assets/company-logo.jpeg" alt="" />
+        <img class="logo-mark" src="/assets/company-logo.jpeg" alt="بداية الطريق العقارية" />
         <p class="eyebrow">شركة بداية الطريق العقارية · Start Road Real Estate Company</p>
         <h1>احسب جدوى استثمارك العقاري باحترافية</h1>
         <p class="lead">تحليل مالي متكامل للتطوير، التأجير، البيع، والتمويل البنكي.</p>
@@ -34,6 +39,13 @@
           </button>
         </div>
         <button class="secondary-btn" data-load-project type="button">استرجاع آخر مشروع محفوظ</button>
+        <section class="saved-projects">
+          <div>
+            <h3>المشاريع المحفوظة</h3>
+            <p>افتح مشروعاً محفوظاً، أو احذفه، أو أنشئ نسخة جديدة منه.</p>
+          </div>
+          <div id="savedProjectsList" class="saved-projects-list"></div>
+        </section>
       </section>
 
       <section id="wizard" class="wizard is-hidden" aria-live="polite">
@@ -42,7 +54,10 @@
             <p class="eyebrow" id="stepLabel">المرحلة 1 من 7</p>
             <h2 id="stepTitle">نوع العقار</h2>
           </div>
-          <button class="icon-btn" data-reset title="إعادة الحساب" aria-label="إعادة الحساب">↻</button>
+          <div class="top-actions">
+            <button class="icon-btn" data-home type="button" title="العودة للبداية" aria-label="العودة للبداية">⌂</button>
+            <button class="icon-btn" data-reset title="إعادة الحساب" aria-label="إعادة الحساب">↻</button>
+          </div>
         </header>
 
         <div class="progress-track" aria-hidden="true"><span id="progressFill"></span></div>
@@ -75,6 +90,7 @@
               <label class="lease-only is-hidden">سعر إيجار المتر السنوي<div class="input-with-unit"><input name="annualLandRent" type="number" min="0" inputmode="decimal" /><span>SAR/م²</span></div><small>المقصود هو سعر إيجار المتر السنوي، وسيتم حساب إجمالي إيجار الأرض تلقائياً: مساحة الأرض × سعر إيجار المتر.</small></label>
               <div class="readonly lease-only is-hidden"><span>إجمالي إيجار الأرض السنوي</span><strong data-out="totalAnnualLandRent">0 ر.س</strong></div>
               <label class="lease-only is-hidden">مدة عقد الأرض<div class="input-with-unit"><input name="leaseTermYears" type="number" min="0" inputmode="decimal" value="10" /><span>سنة</span></div></label>
+              <label class="lease-only is-hidden">فترة سماحية لإيجار الأرض<select name="landRentGracePeriod"><option value="0">بدون</option><option value="0.5">6 شهور</option><option value="1">سنة</option><option value="1.5">سنة ونصف</option><option value="2">سنتين</option><option value="2.5">سنتين ونصف</option></select><small>خلال فترة السماح لا يتم احتساب إيجار الأرض ضمن التدفقات النقدية.</small></label>
               <label class="lease-only is-hidden">نسبة زيادة إيجار الأرض السنوية<div class="input-with-unit"><input name="annualLandRentEscalation" type="number" min="0" inputmode="decimal" /><span>%</span></div></label>
               <div class="readonly purchase-only"><span>إجمالي قيمة الأرض</span><strong data-out="landValue">0 ر.س</strong></div>
               <label>طريقة رسوم السعي أو الوساطة<select name="brokerageMode"><option value="percentage">نسبة من قيمة العقار</option><option value="amount">قيمة</option></select></label>
@@ -227,6 +243,16 @@
             </div>
             <div class="kpi-grid" id="kpiGrid"></div>
             <div class="charts-grid">
+              <section class="card scenario-card full">
+                <h4>إعدادات السيناريوهات</h4>
+                <p>السيناريو الأساسي يعتمد على المدخلات الحالية، المتشائم يفترض انخفاض الإيرادات وارتفاع التكاليف، والمتفائل يفترض ارتفاع الإيرادات وتحسن التكاليف.</p>
+                <div class="scenario-grid">
+                  <label>انخفاض الإيرادات في المتشائم<div class="input-with-unit"><input name="scenarioPessimisticRevenueDrop" type="number" min="0" inputmode="decimal" value="15" /><span>%</span></div></label>
+                  <label>زيادة التكاليف في المتشائم<div class="input-with-unit"><input name="scenarioPessimisticCostIncrease" type="number" min="0" inputmode="decimal" value="10" /><span>%</span></div></label>
+                  <label>زيادة الإيرادات في المتفائل<div class="input-with-unit"><input name="scenarioOptimisticRevenueIncrease" type="number" min="0" inputmode="decimal" value="15" /><span>%</span></div></label>
+                  <label>تحسن التكاليف في المتفائل<div class="input-with-unit"><input name="scenarioOptimisticCostDecrease" type="number" min="0" inputmode="decimal" value="5" /><span>%</span></div></label>
+                </div>
+              </section>
               <section class="card chart-card"><h4>توزيع تكلفة المشروع</h4><canvas id="pieChart" width="420" height="340"></canvas><div class="chart-legend" id="pieLegend"></div></section>
               <section class="card chart-card"><h4>مقارنة الدخل والمصاريف</h4><canvas id="barChart" width="320" height="260"></canvas></section>
               <section class="card chart-card full"><h4>التدفقات النقدية حسب مدة المشروع</h4><canvas id="lineChart" width="760" height="340"></canvas><div class="chart-legend" id="lineLegend"></div></section>
