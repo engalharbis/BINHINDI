@@ -72,7 +72,8 @@
             <div class="card form-grid">
               <label>مساحة الأرض بالمتر المربع<div class="input-with-unit"><input name="landArea" type="number" min="0" inputmode="decimal" /><span>م²</span></div></label>
               <label class="purchase-only">سعر المتر<div class="input-with-unit"><input name="landPricePerMeter" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
-              <label class="lease-only is-hidden">إيجار الأرض السنوي<div class="input-with-unit"><input name="annualLandRent" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
+              <label class="lease-only is-hidden">سعر إيجار المتر السنوي<div class="input-with-unit"><input name="annualLandRent" type="number" min="0" inputmode="decimal" /><span>SAR/م²</span></div><small>المقصود هو سعر إيجار المتر السنوي، وسيتم حساب إجمالي إيجار الأرض تلقائياً: مساحة الأرض × سعر إيجار المتر.</small></label>
+              <div class="readonly lease-only is-hidden"><span>إجمالي إيجار الأرض السنوي</span><strong data-out="totalAnnualLandRent">0 ر.س</strong></div>
               <label class="lease-only is-hidden">مدة عقد الأرض<div class="input-with-unit"><input name="leaseTermYears" type="number" min="0" inputmode="decimal" value="10" /><span>سنة</span></div></label>
               <label class="lease-only is-hidden">نسبة زيادة إيجار الأرض السنوية<div class="input-with-unit"><input name="annualLandRentEscalation" type="number" min="0" inputmode="decimal" /><span>%</span></div></label>
               <div class="readonly purchase-only"><span>إجمالي قيمة الأرض</span><strong data-out="landValue">0 ر.س</strong></div>

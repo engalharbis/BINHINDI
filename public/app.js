@@ -79,7 +79,8 @@ function percent(raw) {
 
 function calculate() {
   const landValue = value("landArea") * value("landPricePerMeter");
-  const annualLandRent = state.mode === "leaseInvestment" ? value("annualLandRent") : 0;
+  const annualLandRentPerMeter = state.mode === "leaseInvestment" ? value("annualLandRent") : 0;
+  const annualLandRent = state.mode === "leaseInvestment" ? value("landArea") * annualLandRentPerMeter : 0;
   const brokerageFees = rawValue("brokerageMode") === "percentage"
     ? (state.mode === "leaseInvestment" ? annualLandRent : landValue) * percent(value("brokerageFees"))
     : value("brokerageFees");
@@ -182,6 +183,7 @@ function calculate() {
 
   return {
     landValue,
+    annualLandRentPerMeter,
     annualLandRent,
     brokerageFees,
     transactionTax,
@@ -343,10 +345,10 @@ function updatePropertyLabels() {
 function syncOutputs() {
   syncVisibility();
   const r = calculate();
-  const moneyKeys = ["landValue", "totalLandCost", "baseConstructionCost", "totalDevelopmentCost", "monthlyIncome", "annualRevenue", "operatingExpenses", "noi", "monthlyDebtService", "annualDebtService", "totalFinancingCost", "netIncomeAfterFinancing"];
+  const moneyKeys = ["landValue", "totalAnnualLandRent", "totalLandCost", "baseConstructionCost", "totalDevelopmentCost", "monthlyIncome", "annualRevenue", "operatingExpenses", "noi", "monthlyDebtService", "annualDebtService", "totalFinancingCost", "netIncomeAfterFinancing"];
   moneyKeys.forEach((key) => {
     const node = document.querySelector(`[data-out="${key}"]`);
-    if (node) node.textContent = currency.format(r[key]);
+    if (node) node.textContent = currency.format(key === "totalAnnualLandRent" ? r.annualLandRent : r[key]);
   });
   const dscr = document.querySelector('[data-out="dscr"]');
   if (dscr) dscr.textContent = r.dscr ? number.format(r.dscr) : "لا يوجد";
@@ -616,8 +618,10 @@ function validateStep() {
   };
   $("#errorMessage").classList.add("is-hidden");
   if (state.step === 1 && state.mode === "purchase" && (!value("landArea") || !value("landPricePerMeter"))) return fail("أدخل مساحة الأرض وسعر المتر بقيم أكبر من صفر.");
-  if (state.step === 1 && state.mode === "leaseInvestment" && (!value("landArea") || !value("annualLandRent"))) return fail("أدخل مساحة الأرض وإيجار الأرض السنوي.");
-  if (state.step === 3 && (!value("unitsCount") || !value("averageMonthlyRent"))) return fail("أدخل عدد الوحدات ومتوسط الإيجار أو السعر.");
+  if (state.step === 1 && state.mode === "leaseInvestment" && (!value("landArea") || !value("annualLandRent"))) return fail("أدخل مساحة الأرض وسعر إيجار المتر السنوي.");
+  if (state.step === 3 && state.transactionType === "sale" && rawValue("saleMethod") === "meter" && !value("averageMonthlyRent")) return fail("الرجاء إدخال سعر البيع للمتر.");
+  if (state.step === 3 && state.transactionType === "sale" && rawValue("saleMethod") === "units" && (!value("unitsCount") || !value("averageMonthlyRent"))) return fail("الرجاء إدخال بيانات الوحدات وأسعار البيع.");
+  if (state.step === 3 && state.transactionType !== "sale" && (!value("unitsCount") || !value("averageMonthlyRent"))) return fail("أدخل عدد الوحدات ومتوسط الإيجار السنوي.");
   if (state.step === 5 && value("hasFinancing") && rawValue("financingMode") === "amount" && (!value("financingAmount") || !value("termYears"))) return fail("أدخل مبلغ التمويل ومدة التمويل.");
   if (state.step === 5 && value("hasFinancing") && rawValue("financingMode") === "ratio" && (!value("financingRatio") || !value("termYears"))) return fail("أدخل نسبة التمويل ومدة التمويل.");
   return true;
@@ -1091,7 +1095,8 @@ function buildReport() {
         row("نوع العملية", state.mode === "purchase" ? "شراء عقار" : "استثمار على أرض مستأجرة"),
         row("نوع العقار", selected[1]),
         row("مساحة الأرض", `${number.format(value("landArea"))} م²`),
-        row("إيجار الأرض السنوي", currency.format(r.annualLandRent)),
+        row("سعر إيجار المتر السنوي", currency.format(r.annualLandRentPerMeter)),
+        row("إجمالي إيجار الأرض السنوي", currency.format(r.annualLandRent)),
         row("مسطح البناء", `${number.format(value("builtUpArea"))} م²`),
         ...(state.transactionType === "sale" ? [] : [row("نسبة الإشغال", `${number.format(value("occupancyRate"))}٪`)])
       ])}
