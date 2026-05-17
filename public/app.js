@@ -37,7 +37,7 @@ const englishNumber = new Intl.NumberFormat("en-US", {
 const number = englishNumber;
 
 function money(value) {
-  return `SAR ${new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value || 0)}`;
+  return `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value || 0)} SAR`;
 }
 
 const currency = { format: money };
@@ -47,7 +47,7 @@ function tableMoney(value) {
 }
 
 function stripSAR(value) {
-  return typeof value === "string" ? value.replace(/^SAR\s*/, "") : value;
+  return typeof value === "string" ? value.replace(/^SAR\s*/, "").replace(/\sSAR$/, "") : value;
 }
 
 const chartMeta = {
@@ -138,7 +138,8 @@ function calculate() {
       + value("otherOperatingExpenses")
     : annualRevenue * percent(value("operatingExpensePercentage"));
   const operatingExpenses = annualMaintenance + operatingDetails;
-  const noi = annualRevenue - operatingExpenses - annualLandRent;
+  const currentLandRent = landRentForYear(annualLandRent, 1).amount;
+  const noi = annualRevenue - operatingExpenses - currentLandRent;
   const hasFinancing = value("hasFinancing");
   const debt = hasFinancing ? debtService(totalProjectCost) : { monthlyDebtService: 0, annualDebtService: 0, totalFinancingCost: 0, financingAmount: 0, financingRatio: 0, financingSchedule: [] };
   const firstDebtService = firstPayableDebtService(debt);
@@ -152,7 +153,7 @@ function calculate() {
   const paybackPeriod = netIncomeAfterFinancing > 0 ? paybackBase / netIncomeAfterFinancing : 0;
   const dscr = hasFinancing && firstDebtService > 0 ? noi / firstDebtService : null;
   const breakEvenOccupancy = annualRevenue > 0 ? Math.min(((operatingExpenses + firstDebtService) / annualRevenue) * value("occupancyRate"), 100) : 0;
-  const rating = rentRating(yieldOnCost);
+  const rating = investmentRating(roi);
   const oneTimeContractFees = state.mode === "leaseInvestment" ? totalLandCost : 0;
   let cumulative = -paybackBase;
   let paybackYear = null;
@@ -298,11 +299,12 @@ function defaultOperatingRate() {
   return 0.02;
 }
 
-function rentRating(yieldOnCost) {
-  if (yieldOnCost >= 12) return "ممتاز جداً";
-  if (yieldOnCost >= 10) return "ممتاز";
-  if (yieldOnCost >= 9) return "جيد جداً";
-  if (yieldOnCost >= 8) return "جيد";
+function investmentRating(roi) {
+  if (roi > 15) return "استثنائي";
+  if (roi >= 12) return "ممتاز جداً";
+  if (roi >= 10) return "ممتاز";
+  if (roi >= 9) return "جيد جداً";
+  if (roi >= 8) return "جيد";
   return "ضعيف";
 }
 
@@ -467,20 +469,20 @@ function renderKpis(r) {
   const grid = $("#kpiGrid");
   if (!grid) return;
   const items = state.transactionType === "sale" ? saleKpiItems(r) : [
-    ["قيمة الأرض", "Land Value", currency.format(r.landValue), state.mode === "purchase" ? "قيمة الأرض حسب المساحة وسعر المتر" : "لا تحتسب كأصل مملوك في أرض الاستثمار", true],
-    ["تكلفة البناء والتطوير", "Development Cost", currency.format(r.totalDevelopmentCost), "تكلفة البناء والتكاليف الإضافية والاحتياطي", false],
-    ["إجمالي تكلفة المشروع", "Total Project Cost", currency.format(r.totalProjectCost), "التكلفة الكلية للمشروع", true],
-    ["إجمالي الدخل المتوقع", "Expected Revenue", currency.format(r.annualRevenue), "إجمالي الدخل المتوقع سنوياً", false],
-    ["NOI", "Net Operating Income", currency.format(r.noi), "صافي الدخل التشغيلي"],
-    ["صافي الربح", "Net Profit", currency.format(r.netIncomeAfterFinancing), "بعد المصاريف والتمويل", false],
-    ["Yield on Cost", "Return compared to total project cost", `${number.format(r.yieldOnCost)}%`, "العائد السنوي مقارنة بإجمالي تكلفة المشروع"],
-    ["ROI", "Return on Investment", `${number.format(r.roi)}%`, "نسبة العائد على الاستثمار"],
+    ["ROI", "Return on Investment", `${number.format(r.roi)}%`, "نسبة العائد على الاستثمار", true],
+    ["Net ROI", "Net Return on Investment", `${number.format(r.roi)}%`, "صافي العائد بعد المصاريف والتمويل", true],
+    ["NOI", "Net Operating Income", currency.format(r.noi), "صافي الدخل التشغيلي", true],
+    ["صافي الربح", "Net Profit", currency.format(r.netIncomeAfterFinancing), "بعد المصاريف والتمويل", true],
+    [state.mode === "leaseInvestment" ? "فترة استرداد تكلفة التطوير" : "Payback Period", "Payback Period", `${number.format(r.paybackPeriod)} سنة`, state.mode === "leaseInvestment" ? "استرداد تطوير الأرض المستأجرة" : "استرداد رأس المال", true],
+    ["التقييم الاستثماري", "Investment Rating", r.rating, "يعتمد على ROI حسب شرائح التقييم"],
+    [state.mode === "leaseInvestment" ? "تكلفة تطوير المشروع" : "قيمة الأرض", state.mode === "leaseInvestment" ? "Development Cost" : "Land Value", state.mode === "leaseInvestment" ? currency.format(r.totalDevelopmentCost) : currency.format(r.landValue), state.mode === "leaseInvestment" ? "الأرض مستأجرة وليست أصلاً مملوكاً" : "قيمة الأرض حسب المساحة وسعر المتر"],
+    ["إجمالي تكلفة المشروع", "Total Project Cost", currency.format(r.totalProjectCost), "التكلفة الكلية للمشروع"],
+    ["إجمالي الدخل المتوقع", "Expected Revenue", currency.format(r.annualRevenue), "إجمالي الدخل المتوقع سنوياً"],
     ["IRR", "Internal Rate of Return", `${number.format(r.irr)}%`, "معدل العائد الداخلي المتوقع للمشروع"],
-    ["NPV", "Net Present Value", currency.format(r.npv), "صافي القيمة الحالية للتدفقات النقدية المستقبلية"],
-    [state.mode === "leaseInvestment" ? "فترة استرداد تكلفة التطوير" : "Payback Period", "Payback Period", `${number.format(r.paybackPeriod)} سنة`, state.mode === "leaseInvestment" ? "عدد السنوات المتوقعة لاسترداد تطوير الأرض المستأجرة" : "عدد السنوات المتوقعة لاسترداد رأس المال"],
-    ["القسط السنوي", "Annual Debt Service", currency.format(r.annualDebtService), "خدمة الدين السنوية"],
-    ["DSCR", "Debt Service Coverage Ratio", r.dscr ? number.format(r.dscr) : "لا يوجد", "قدرة المشروع على تغطية التزامات التمويل"],
-    ["نقطة التعادل", "Break-even", `${number.format(r.breakEvenOccupancy)}%`, "نسبة إشغال تقريبية للتعادل"]
+    ...(value("hasFinancing") ? [
+      ["القسط السنوي", "Annual Debt Service", currency.format(r.annualDebtService), "خدمة الدين السنوية"],
+      ["DSCR", "Debt Service Coverage Ratio", r.dscr ? number.format(r.dscr) : "لا يوجد", "قدرة المشروع على تغطية التزامات التمويل"]
+    ] : [])
   ];
   grid.innerHTML = items.map(([label, en, val, hint, highlight]) => `<div class="kpi-card ${highlight || label === "NOI" ? "is-prime" : ""}"><span>${label}<small>(${en})</small></span><strong>${formatKpiMoney(val)}</strong><em>${hint}</em></div>`).join("");
 }
@@ -489,16 +491,18 @@ function saleKpiItems(r) {
   const profit = saleProfit(r);
   const margin = saleMargin(r);
   return [
-    ["إجمالي المبيعات المتوقعة", "Expected Sales", currency.format(r.annualRevenue), "قيمة البيع المتوقعة حسب طريقة البيع", true],
+    ["ROI", "Return on Investment", `${number.format(r.roi)}%`, "نسبة العائد على الاستثمار", true],
+    ["Net ROI", "Net Return on Investment", `${number.format(r.roi)}%`, "صافي العائد بعد التكاليف والتمويل", true],
     ["صافي الربح المتوقع", "Expected Net Profit", currency.format(profit), "إجمالي المبيعات بعد خصم تكلفة المشروع والتمويل", true],
     ["هامش الربح", "Profit Margin", `${number.format(margin)}%`, "صافي الربح ÷ إجمالي المبيعات", true],
-    ["ROI", "Return on Investment", `${number.format(r.roi)}%`, "نسبة العائد على الاستثمار", false],
+    ["التقييم الاستثماري", "Investment Rating", saleRating(r), "يعتمد على هامش الربح"],
+    ["إجمالي المبيعات المتوقعة", "Expected Sales", currency.format(r.annualRevenue), "قيمة البيع المتوقعة حسب طريقة البيع"],
     ["إجمالي تكلفة المشروع", "Total Project Cost", currency.format(r.totalProjectCost), "التكلفة الكلية للتطوير", true],
     ["قيمة الأرض", "Land Value", currency.format(r.landValue), "تكلفة الأرض ضمن المشروع", false],
     ["تكلفة التطوير", "Development Cost", currency.format(r.totalDevelopmentCost), "تكلفة البناء والتكاليف الإضافية والاحتياطي", false],
     ["فترة الاسترداد", "Payback", "يتم الاسترداد عند اكتمال البيع", "لا توجد تدفقات تشغيلية دورية في نموذج البيع", false],
     ["IRR", "Internal Rate of Return", `${number.format(r.irr)}%`, "معدل العائد الداخلي المتوقع", false],
-    ["NPV", "Net Present Value", currency.format(r.npv), "صافي القيمة الحالية", false]
+    ...(value("hasFinancing") ? [["القسط السنوي", "Annual Debt Service", currency.format(r.annualDebtService), "خدمة الدين السنوية"]] : [])
   ];
 }
 
@@ -520,8 +524,8 @@ function saleRating(r) {
 }
 
 function formatKpiMoney(value) {
-  if (typeof value !== "string" || !value.startsWith("SAR ")) return value;
-  return `<small class="currency-mark">SAR</small>${value.replace("SAR ", "")}`;
+  if (typeof value !== "string" || !value.endsWith(" SAR")) return value;
+  return `${value.replace(" SAR", "")}<small class="currency-mark">SAR</small>`;
 }
 
 function renderCashflowTable(r) {
@@ -774,7 +778,6 @@ function roundRect(ctx, x, y, w, h, r) {
 }
 
 function renderCharts(r) {
-  const scenarios = scenarioValues(r);
   const costItems = [
     { label: "الأرض", value: state.mode === "purchase" ? r.landValue : 0 },
     { label: "البناء", value: r.baseConstructionCost },
@@ -783,10 +786,8 @@ function renderCharts(r) {
   ].filter((item) => item.value > 0);
   drawPieEnhanced($("#pieChart"), costItems);
   drawBar($("#barChart"), state.transactionType === "sale" ? [
-    { label: "التكلفة", value: r.totalProjectCost },
-    { label: "متشائم", value: scenarios.pessimisticProfit },
-    { label: "أساسي", value: r.annualRevenue },
-    { label: "متفائل", value: scenarios.optimisticProfit },
+    { label: "إجمالي المبيعات", value: r.annualRevenue },
+    { label: "إجمالي التكلفة", value: r.totalProjectCost },
     { label: "الربح", value: saleProfit(r) }
   ] : [
     { label: "الإيراد", value: r.annualRevenue },
@@ -795,21 +796,6 @@ function renderCharts(r) {
     { label: "بعد التمويل", value: r.netIncomeAfterFinancing }
   ]);
   drawLineEnhanced($("#lineChart"), displayCashFlows(r));
-}
-
-function scenarioValues(r) {
-  const pessimisticRevenue = r.annualRevenue * (1 - percent(value("scenarioPessimisticRevenueDrop")));
-  const pessimisticCost = r.totalProjectCost * (1 + percent(value("scenarioPessimisticCostIncrease")));
-  const optimisticRevenue = r.annualRevenue * (1 + percent(value("scenarioOptimisticRevenueIncrease")));
-  const optimisticCost = r.totalProjectCost * (1 - percent(value("scenarioOptimisticCostDecrease")));
-  return {
-    pessimisticRevenue,
-    pessimisticCost,
-    optimisticRevenue,
-    optimisticCost,
-    pessimisticProfit: pessimisticRevenue - pessimisticCost,
-    optimisticProfit: optimisticRevenue - optimisticCost
-  };
 }
 
 function drawPieEnhanced(canvas, items) {
@@ -1081,7 +1067,7 @@ function buildReport() {
   const reportShowLandRent = state.mode === "leaseInvestment";
   const reportIncomeLabel = state.transactionType === "sale" ? "البيع" : "الدخل";
   const reportRating = state.transactionType === "sale" ? saleRating(r) : r.rating;
-  const row = (label, val) => `<tr><td>${label}</td><td>${stripSAR(val)}</td></tr>`;
+  const row = (label, val) => `<tr><td>${label}</td><td>${val}</td></tr>`;
   const table = (title, rows) => `<section class="report-section"><h2>${title}</h2><table>${rows.join("")}</table></section>`;
   const financingRows = (r.financingSchedule || []).map((item) => `
     <tr>
@@ -1113,23 +1099,20 @@ function buildReport() {
         <div class="report-meta-card"><span>نوع العقار</span><strong>${selected[1]}</strong></div>
       </div>
       <section class="report-summary">
-        <h2>ملخص تنفيذي</h2>
-        <div class="report-summary-grid">
-          <div class="report-summary-card"><span>إجمالي التكلفة</span><strong>${currency.format(r.totalProjectCost)}</strong></div>
-        <div class="report-summary-card"><span>${state.transactionType === "sale" ? "إجمالي المبيعات" : "الإيراد السنوي"}</span><strong>${currency.format(r.annualRevenue)}</strong></div>
-        <div class="report-summary-card"><span>${state.transactionType === "sale" ? "صافي الربح" : "صافي الدخل"}</span><strong>${currency.format(state.transactionType === "sale" ? saleProfit(r) : r.noi)}</strong></div>
+        <h2>Executive Summary</h2>
+        <div class="report-grid executive-grid">
+          <div class="report-kpi">إجمالي تكلفة المشروع<strong>${currency.format(r.totalProjectCost)}</strong></div>
+          <div class="report-kpi">تكلفة التطوير<strong>${currency.format(r.totalDevelopmentCost)}</strong></div>
+          <div class="report-kpi">${state.mode === "purchase" ? "قيمة الأرض" : "تكلفة تطوير المشروع"}<strong>${state.mode === "purchase" ? currency.format(r.landValue) : currency.format(r.totalDevelopmentCost)}</strong></div>
+          <div class="report-kpi">${state.transactionType === "sale" ? "إجمالي المبيعات" : "الإيراد السنوي"}<strong>${currency.format(r.annualRevenue)}</strong></div>
+          <div class="report-kpi">NOI<strong>${currency.format(r.noi)}</strong></div>
+          <div class="report-kpi">Net Profit<strong>${currency.format(state.transactionType === "sale" ? saleProfit(r) : r.netIncomeAfterFinancing)}</strong></div>
+          <div class="report-kpi">ROI<strong>${number.format(r.roi)}%</strong></div>
+          <div class="report-kpi">Net ROI<strong>${number.format(r.roi)}%</strong></div>
+          <div class="report-kpi">${state.mode === "leaseInvestment" ? "استرداد التطوير" : "فترة الاسترداد"}<strong>${state.transactionType === "sale" ? "عند اكتمال البيع" : `${number.format(r.paybackPeriod)} سنة`}</strong></div>
+          <div class="report-kpi rating-wide">التقييم الاستثماري<strong>${reportRating}</strong></div>
         </div>
       </section>
-      <div class="report-grid">
-        <div class="report-kpi">${state.transactionType === "sale" ? "هامش الربح" : "Yield on Cost"}<strong>${number.format(state.transactionType === "sale" ? saleMargin(r) : r.yieldOnCost)}%</strong></div>
-        <div class="report-kpi">ROI<strong>${number.format(r.roi)}%</strong></div>
-        <div class="report-kpi">NPV<strong>${currency.format(r.npv)}</strong></div>
-        <div class="report-kpi">التقييم<strong>${reportRating}</strong></div>
-        <div class="report-kpi">تكلفة التطوير<strong>${currency.format(r.totalDevelopmentCost)}</strong></div>
-        <div class="report-kpi">قيمة الأرض<strong>${state.mode === "purchase" ? currency.format(r.landValue) : "أرض مستأجرة"}</strong></div>
-        <div class="report-kpi">Net Profit<strong>${currency.format(state.transactionType === "sale" ? saleProfit(r) : r.netIncomeAfterFinancing)}</strong></div>
-        <div class="report-kpi">${state.mode === "leaseInvestment" ? "استرداد التطوير" : "فترة الاسترداد"}<strong>${state.transactionType === "sale" ? "عند اكتمال البيع" : `${number.format(r.paybackPeriod)} سنة`}</strong></div>
-      </div>
       <div class="report-footer">Fares Alharbi</div>
     </article>
     <article class="report-page">
@@ -1200,16 +1183,13 @@ function buildReport() {
         row("هامش الربح", `${number.format(saleMargin(r))}%`),
         row("ROI", `${number.format(r.roi)}٪`),
         row("IRR", `${number.format(r.irr)}٪`),
-        row("NPV", currency.format(r.npv)),
         row("فترة الاسترداد", "يتم الاسترداد عند اكتمال البيع"),
         row("التقييم المختصر", reportRating)
       ] : [
         row("إجمالي تكلفة المشروع", currency.format(r.totalProjectCost)),
         row("صافي الدخل بعد التمويل", currency.format(r.netIncomeAfterFinancing)),
-        row("Yield on Cost", `${number.format(r.yieldOnCost)}٪`),
         row("ROI", `${number.format(r.roi)}٪`),
         row("IRR", `${number.format(r.irr)}٪`),
-        row("NPV", currency.format(r.npv)),
         row(state.mode === "leaseInvestment" ? "فترة استرداد تكلفة التطوير" : "فترة استرداد رأس المال", `${number.format(r.paybackPeriod)} سنة`),
         row("سنة الاسترداد", r.paybackYear ? `السنة ${r.paybackYear}` : "لم يتم الاسترداد"),
         row("نقطة التعادل التقريبية", `${number.format(r.breakEvenOccupancy)}٪`),
@@ -1249,7 +1229,6 @@ function buildReport() {
       ${table("توزيع التكاليف", costDistributionRows)}
       <section class="report-section">
         <h2>الرسوم البيانية</h2>
-        <p class="report-note">السيناريو الأساسي يعتمد على المدخلات الحالية، المتشائم يفترض انخفاض الإيرادات وارتفاع التكاليف، والمتفائل يفترض ارتفاع الإيرادات وتحسن التكاليف.</p>
         <div class="report-charts">
           <figure><img src="${pieImage}" alt="توزيع تكلفة المشروع"><figcaption>توزيع تكلفة المشروع</figcaption><div class="report-chart-legend">${reportPieLegend}</div></figure>
           <figure><img src="${barImage}" alt="مقارنة الدخل والمصاريف"><figcaption>مقارنة الدخل والمصاريف</figcaption></figure>
@@ -1262,7 +1241,8 @@ function buildReport() {
     </article>
   `;
   if (value("hasFinancing")) {
-    const financePage = $("#printReport .report-page:nth-child(3)");
+    const reportPages = [...document.querySelectorAll("#printReport .report-page")];
+    const financePage = reportPages[reportPages.length - 1];
     financePage?.insertAdjacentHTML("beforeend", `<section class="report-section">
       <h2>جدول التمويل السنوي</h2>
       <table>

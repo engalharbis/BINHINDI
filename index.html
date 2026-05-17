@@ -88,7 +88,7 @@
               <label>مساحة الأرض بالمتر المربع<div class="input-with-unit"><input name="landArea" type="number" min="0" inputmode="decimal" /><span>م²</span></div></label>
               <label class="purchase-only">سعر المتر<div class="input-with-unit"><input name="landPricePerMeter" type="number" min="0" inputmode="decimal" /><span>SAR</span></div></label>
               <label class="lease-only is-hidden">سعر إيجار المتر السنوي<div class="input-with-unit"><input name="annualLandRent" type="number" min="0" inputmode="decimal" /><span>SAR/م²</span></div><small>المقصود هو سعر إيجار المتر السنوي، وسيتم حساب إجمالي إيجار الأرض تلقائياً: مساحة الأرض × سعر إيجار المتر.</small></label>
-              <div class="readonly lease-only is-hidden"><span>إجمالي إيجار الأرض السنوي</span><strong data-out="totalAnnualLandRent">0 ر.س</strong></div>
+              <div class="readonly land-rent-total lease-only is-hidden"><span>إجمالي إيجار الأرض السنوي</span><strong data-out="totalAnnualLandRent">0 ر.س</strong></div>
               <label class="lease-only is-hidden">مدة عقد الأرض<div class="input-with-unit"><input name="leaseTermYears" type="number" min="0" inputmode="decimal" value="10" /><span>سنة</span></div></label>
               <label class="lease-only is-hidden">فترة سماحية لإيجار الأرض<select name="landRentGracePeriod"><option value="0">بدون</option><option value="0.5">6 شهور</option><option value="1">سنة</option><option value="1.5">سنة ونصف</option><option value="2">سنتين</option><option value="2.5">سنتين ونصف</option></select><small>خلال فترة السماح لا يتم احتساب إيجار الأرض ضمن التدفقات النقدية.</small></label>
               <label class="lease-only is-hidden">نسبة زيادة إيجار الأرض السنوية<div class="input-with-unit"><input name="annualLandRentEscalation" type="number" min="0" inputmode="decimal" /><span>%</span></div></label>
@@ -243,16 +243,6 @@
             </div>
             <div class="kpi-grid" id="kpiGrid"></div>
             <div class="charts-grid">
-              <section class="card scenario-card full">
-                <h4>إعدادات السيناريوهات</h4>
-                <p>السيناريو الأساسي يعتمد على المدخلات الحالية، المتشائم يفترض انخفاض الإيرادات وارتفاع التكاليف، والمتفائل يفترض ارتفاع الإيرادات وتحسن التكاليف.</p>
-                <div class="scenario-grid">
-                  <label>انخفاض الإيرادات في المتشائم<div class="input-with-unit"><input name="scenarioPessimisticRevenueDrop" type="number" min="0" inputmode="decimal" value="15" /><span>%</span></div></label>
-                  <label>زيادة التكاليف في المتشائم<div class="input-with-unit"><input name="scenarioPessimisticCostIncrease" type="number" min="0" inputmode="decimal" value="10" /><span>%</span></div></label>
-                  <label>زيادة الإيرادات في المتفائل<div class="input-with-unit"><input name="scenarioOptimisticRevenueIncrease" type="number" min="0" inputmode="decimal" value="15" /><span>%</span></div></label>
-                  <label>تحسن التكاليف في المتفائل<div class="input-with-unit"><input name="scenarioOptimisticCostDecrease" type="number" min="0" inputmode="decimal" value="5" /><span>%</span></div></label>
-                </div>
-              </section>
               <section class="card chart-card"><h4>توزيع تكلفة المشروع</h4><canvas id="pieChart" width="420" height="340"></canvas><div class="chart-legend" id="pieLegend"></div></section>
               <section class="card chart-card"><h4>مقارنة الدخل والمصاريف</h4><canvas id="barChart" width="320" height="260"></canvas></section>
               <section class="card chart-card full"><h4>التدفقات النقدية حسب مدة المشروع</h4><canvas id="lineChart" width="760" height="340"></canvas><div class="chart-legend" id="lineLegend"></div></section>
